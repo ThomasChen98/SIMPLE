@@ -141,7 +141,7 @@ def heatmap_plot(total_rewards_normalized, checkpoint, args):
 
     # generate heat plot
     sns.set(rc={'figure.figsize':(15,12)})
-    ax = sns.heatmap(df_P1, annot=True, fmt=".2f", vmin=-1, vmax=1, cmap="vlag")
+    ax = sns.heatmap(df_P1, annot=True, fmt=".2f", vmin=-1, vmax=1, cmap=args.cmap)
     ax.set_title(f"{args.env_name} player 1 average score with {args.games} gameplays".title(),fontsize=25)
     ax.set_xlabel("Player 2", fontsize=20)
     ax.set_ylabel("Player 1", fontsize=20)
@@ -151,7 +151,7 @@ def heatmap_plot(total_rewards_normalized, checkpoint, args):
     fig.savefig(f'./heatmap/P1_{args.env_name}_{args.arange[0]}_{args.arange[1]}_{args.arange[2]}_g{args.games}.png') 
 
     fig.clf()
-    ax = sns.heatmap(df_P2, annot=True, fmt=".2f", vmin=-1, vmax=1, cmap="vlag")
+    ax = sns.heatmap(df_P2, annot=True, fmt=".2f", vmin=-1, vmax=1, cmap=args.cmap)
     ax.set_title(f"{args.env_name} player 2 average score with {args.games} gameplays".title(),fontsize=25)
     ax.set_xlabel("Player 2", fontsize=20)
     ax.set_ylabel("Player 1", fontsize=20)
@@ -176,9 +176,11 @@ def cli() -> None:
                 , help="Make AI agents choose the best move (rather than sampling)")
   parser.add_argument("--cont", "-c",  action = 'store_true', default = False
                 , help="Pause after each turn to wait for user to continue")
+  parser.add_argument("--cmap", "-cm", type = str, default = "Spectral"
+                , help="Colormap")
   parser.add_argument("--debug", "-d",  action = 'store_true', default = False
                 , help="Show logs to debug level")
-  parser.add_argument("--env_name", "-e",  type = str, default = 'TicTacToe'
+  parser.add_argument("--env_name", "-e",  type = str, default = 'tictactoe'
                 , help="Which game to play?")
   parser.add_argument("--games", "-g", type = int, default = 1
                 , help="Number of games to play)")

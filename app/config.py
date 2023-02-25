@@ -9,4 +9,4 @@ LOGDIR = "logs"
 RESULTSPATH = 'viz/results.csv'
 TMPMODELDIR = "zoo/tmp"
 MODELDIR = "zoo/pretrained"
-TEMPDIR = "temp"
+HEATMAPDIR = "heatmap"
