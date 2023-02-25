@@ -1,3 +1,7 @@
+# Generate heatmap for self-play agents
+# Author: Yuxin Chen
+# Date: Feb 24, 2023
+
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 
