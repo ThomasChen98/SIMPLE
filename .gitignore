@@ -119,4 +119,4 @@ venv.bak/
 .idea/
 
 # models
-.app/zoo/pretrained
+./app/zoo/pretrained
