@@ -118,3 +118,5 @@ venv.bak/
 # PyCharm / IDEA
 .idea/
 
+# models
+.app/zoo/pretrained

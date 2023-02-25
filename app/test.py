@@ -141,8 +141,8 @@ def cli() -> None:
                 , help="Make AI agents choose the best move (rather than sampling)")
   parser.add_argument("--games", "-g", type = int, default = 1
                 , help="Number of games to play)")
-  # parser.add_argument("--n_players", "-n", type = int, default = 3
-  #               , help="Number of players in the game (if applicable)")
+  parser.add_argument("--n_players", "-n", type = int, default = 3
+                , help="Number of players in the game (if applicable)")
   parser.add_argument("--debug", "-d",  action = 'store_true', default = False
             , help="Show logs to debug level")
   parser.add_argument("--verbose", "-v",  action = 'store_true', default = False

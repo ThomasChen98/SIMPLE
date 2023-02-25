@@ -7,7 +7,7 @@ services:
             dockerfile: app/Dockerfile
         ports:
             - 8899:8899
-            - 6006:6006
+            - 6003:6003
         volumes:
             - ./app/:/app/
         tty: true

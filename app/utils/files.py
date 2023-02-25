@@ -90,6 +90,18 @@ def load_all_models(env):
         models.append(load_model(env, name = model_name))
     return models
 
+def load_selected_models(env, checkpoints):
+    modellist = []
+    for cp in checkpoints:
+        for f in os.listdir(os.path.join(config.MODELDIR, env.name)):
+            if f.startswith("_model_"+str(cp).zfill(5)):
+                modellist.append(f)
+    modellist.sort()
+    models = []
+    for model_name in modellist:
+        models.append(load_model(env, name = model_name))
+    return models, modellist
+
 
 def get_best_model_name(env_name):
     modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name)) if f.startswith("_model")]
