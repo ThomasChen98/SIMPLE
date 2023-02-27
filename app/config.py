@@ -10,3 +10,4 @@ RESULTSPATH = 'viz/results.csv'
 TMPMODELDIR = "zoo/tmp"
 MODELDIR = "zoo/pretrained"
 HEATMAPDIR = "heatmap"
+RIDGELINEDIR = "ridgeline"
