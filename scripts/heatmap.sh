@@ -1,0 +1,1 @@
+sudo docker-compose exec app python3 heatmap.py -e connect4 -g 100 -a 1 100 5 -l connect4_1_100_5_g100.npz
