@@ -31,16 +31,19 @@ def main(args):
 
   rank = MPI.COMM_WORLD.Get_rank()
 
-  model_dir = os.path.join(config.MODELDIR, args.env_name)
+  model_dir = os.path.join(config.MODELDIR, args.env_name, f'{rank+1}')
+  temp_model_dir = os.path.join(config.TMPMODELDIR, f'{rank+1}')
 
+  try:
+    os.makedirs(model_dir)
+    os.makedirs(temp_model_dir)
+  except:
+    pass
+  reset_logs(model_dir)
+  if args.reset:
+    reset_models(model_dir)
+  
   if rank == 0:
-    try:
-      os.makedirs(model_dir)
-    except:
-      pass
-    reset_logs(model_dir)
-    if args.reset:
-      reset_models(model_dir)
     logger.configure(config.LOGDIR)
   else:
     logger.configure(format_strs=[])
@@ -89,7 +92,7 @@ def main(args):
   logger.info('\nSetting up the selfplay evaluation environment opponents...')
   callback_args = {
     'eval_env': selfplay_wrapper(base_env)(opponent_type = args.opponent_type, verbose = args.verbose),
-    'best_model_save_path' : config.TMPMODELDIR,
+    'best_model_save_path' : temp_model_dir,
     'log_path' : config.LOGDIR,
     'eval_freq' : args.eval_freq,
     'n_eval_episodes' : args.n_eval_episodes,
@@ -116,7 +119,7 @@ def main(args):
 
   logger.info('\nSetup complete - commencing learning...\n')
 
-  model.learn(total_timesteps=int(1e9), callback=[eval_callback], reset_num_timesteps = False, tb_log_name="tb")
+  model.learn(total_timesteps=int(1e7), callback=[eval_callback], reset_num_timesteps = False, tb_log_name="tb")
 
   env.close()
   del env
@@ -134,7 +137,7 @@ def cli() -> None:
 
   parser.add_argument("--reset", "-r", action = 'store_true', default = False
                 , help="Start retraining the model from scratch")
-  parser.add_argument("--opponent_type", "-o", type = str, default = 'mostly_best'
+  parser.add_argument("--opponent_type", "-o", type = str, default = 'best'
               , help="best / mostly_best / random / base / rules - the type of opponent to train against")
   parser.add_argument("--debug", "-d", action = 'store_true', default = False
               , help="Debug logging")

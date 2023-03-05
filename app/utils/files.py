@@ -43,7 +43,7 @@ def write_results(players, game, games, episode_length):
 
 def load_model(env, name):
 
-    filename = os.path.join(config.MODELDIR, env.name, name)
+    filename = os.path.join(config.MODELDIR, env.name, f'{MPI.COMM_WORLD.Get_rank()+1}', name)
     if os.path.exists(filename):
         logger.info(f'Loading {name}')
         cont = True
@@ -61,13 +61,11 @@ def load_model(env, name):
             try:
                 
                 rank = MPI.COMM_WORLD.Get_rank()
-                if rank == 0:
-                    ppo_model = PPO1(get_network_arch(env.name), env=env)
-                    logger.info(f'Saving base.zip PPO model...')
-                    ppo_model.save(os.path.join(config.MODELDIR, env.name, 'base.zip'))
-                else:
 
-                    ppo_model = PPO1.load(os.path.join(config.MODELDIR, env.name, 'base.zip'), env=env)
+                ppo_model = PPO1(get_network_arch(env.name), env=env)
+                ppo_model.save(os.path.join(config.MODELDIR, env.name, f'{rank+1}', 'base.zip'))
+                if rank == 0:
+                    logger.info(f'Saving base.zip PPO model...')
 
                 cont = False
             except IOError as e:
@@ -83,7 +81,7 @@ def load_model(env, name):
 
 
 def load_all_models(env):
-    modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env.name)) if f.startswith("_model")]
+    modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env.name, f'{MPI.COMM_WORLD.Get_rank()+1}')) if f.startswith("_model")]
     modellist.sort()
     models = [load_model(env, 'base.zip')]
     for model_name in modellist:
@@ -93,7 +91,7 @@ def load_all_models(env):
 def load_selected_models(env, checkpoints):
     modellist = []
     for cp in checkpoints:
-        for f in os.listdir(os.path.join(config.MODELDIR, env.name)):
+        for f in os.listdir(os.path.join(config.MODELDIR, env.name, f'{MPI.COMM_WORLD.Get_rank()+1}')):
             if f.startswith("_model_"+str(cp).zfill(5)):
                 modellist.append(f)
     modellist.sort()
@@ -104,7 +102,7 @@ def load_selected_models(env, checkpoints):
 
 
 def get_best_model_name(env_name):
-    modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name)) if f.startswith("_model")]
+    modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'{MPI.COMM_WORLD.Get_rank()+1}')) if f.startswith("_model")]
     
     if len(modellist)==0:
         filename = None

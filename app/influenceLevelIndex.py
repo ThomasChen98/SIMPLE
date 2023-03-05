@@ -1,6 +1,10 @@
-# Calculate influence level index for given environment
-# Author: Yuxin Chen
-# Date: Feb 24, 2023
+### Calculate influence level index for given environment
+### Author: Yuxin Chen
+### Date: Feb 24, 2023
+
+### Sample usage
+# sudo docker-compose exec app python3 influenceLevelIndex.py -e tictactoe -g 100 -a 1 60 3
+# sudo docker-compose exec app python3 influenceLevelIndex.py -e tictactoe -g 100 -a 1 60 3 -l tictactoe_1_60_3_g100.npz
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 

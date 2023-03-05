@@ -1,6 +1,10 @@
-# Generate heatmap for self-play agents
-# Author: Yuxin Chen
-# Date: Feb 24, 2023
+### Generate heatmap for self-play agents
+### Author: Yuxin Chen
+### Date: Feb 24, 2023
+
+### Sample usage
+# sudo docker-compose exec app python3 heatmap.py -e connect4 -g 100 -a 1 100 5
+# sudo docker-compose exec app python3 heatmap.py -e connect4 -g 100 -a 1 100 5 -l connect4_1_100_5_g100.npz
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
