@@ -122,3 +122,5 @@ venv.bak/
 app/zoo/pretrained/*
 app/data/*
 app/old_data/*
+app/heatmap/*
+app/logs_tournament/*

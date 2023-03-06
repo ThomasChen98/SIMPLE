@@ -3,8 +3,8 @@
 ### Date: Feb 24, 2023
 
 ### Sample usage
-# sudo docker-compose exec app mpirun -np 25 python3 tournament.py -e tictactoe -g 100 -a 1 25 2 -p 5 -ld data/SP_tictactoe_best/Model
-# sudo docker-compose exec app python3 tournament.py -e connect4 -g 100 -a 1 100 5 -l connect4_1_100_5_g100.npz
+# sudo docker-compose exec app mpirun -np 25 python3 tournament.py -e tictactoe -g 100 -a 1 25 2 -p 5 -ld data/SP_tictactoe_best_10M_s5/models
+# sudo docker-compose exec app python3 tournament.py -e connect4 -g 100 -a 1 100 5 -l connect4_1.100.5_g100.npz
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
@@ -33,6 +33,7 @@ import config
 
 
 def main(args):
+    start_time = MPI.Wtime()
     # check mpi rank
     rank = MPI.COMM_WORLD.Get_rank()
     if MPI.COMM_WORLD.Get_size() != args.population**2:
@@ -66,7 +67,7 @@ def main(args):
     checkpoint = np.arange(args.arange[0],args.arange[1],args.arange[2])
     ego_rank = rank//args.population
     opp_rank = rank%args.population
-    logger.info(f'\n##### Rank {rank+1} ##### Loading {args.env_name} {ego_rank+1}th model as ego, {opp_rank+1}th model as opponent...')
+    logger.info(f'\n##### Rank {rank+1} #####\nLoading {args.env_name} seed {ego_rank+1} model as ego, seed {opp_rank+1} model as opponent...')
     ego_models, ego_model_list = load_selected_models(args.load_dir,env,ego_rank,checkpoint)
     opp_models, opp_model_list = load_selected_models(args.load_dir,env,opp_rank,checkpoint)
     if len(ego_models) != len(opp_models):
@@ -144,14 +145,49 @@ def main(args):
     total_rewards_normalized = total_rewards / args.games
 
     # save data
-    save_name = f'./heatmap/{args.env_name}_{ego_rank+1}vs{opp_rank+1}_{args.arange[0]}_{args.arange[1]}_{args.arange[2]}_g{args.games}'
+    save_name = f'./heatmap/{args.env_name}_{ego_rank+1}vs{opp_rank+1}_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}'
     np.savez_compressed(save_name, total_rewards_normalized=total_rewards_normalized, checkpoint=checkpoint, ranks=[ego_rank, opp_rank])
 
     # plot
-    heatmap_plot(total_rewards_normalized, checkpoint, [ego_rank, opp_rank], args)
- 
+    heatmap_plot(total_rewards_normalized, checkpoint, args, ranks=[ego_rank, opp_rank])
+    logger.info(f"\nGenerate tournament heatmap for seed {ego_rank+1} vs. seed {opp_rank+1}")
 
-def heatmap_plot(total_rewards_normalized, checkpoint, ranks, args):
+    # plot average heatmap & deviation
+    if rank == 0:
+        world_total_rewards_normalized = np.zeros((MPI.COMM_WORLD.Get_size(), policy_num, policy_num, env.n_players))
+        world_total_rewards_normalized[0,:,:,:] = total_rewards_normalized
+        for i in range( 1, MPI.COMM_WORLD.Get_size() ):
+            current_total_rewards_normalized = np.zeros((policy_num, policy_num, env.n_players))
+            MPI.COMM_WORLD.Recv( [current_total_rewards_normalized, MPI.DOUBLE], source=i, tag=i )
+            world_total_rewards_normalized[i,:,:,:] = current_total_rewards_normalized
+            logger.info(f"{i+1}th normalized total_reward received")
+        total_rewards_normalized_avg = np.mean(world_total_rewards_normalized, axis=0)
+        total_rewards_normalized_std = np.std(world_total_rewards_normalized, axis=0)
+
+        # save data
+        avg_name = f'./heatmap/{args.env_name}_avg_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}'
+        std_name = f'./heatmap/{args.env_name}_std_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}'
+        np.savez_compressed(avg_name, total_rewards_normalized=total_rewards_normalized_avg, checkpoint=checkpoint)
+        np.savez_compressed(std_name, total_rewards_normalized=total_rewards_normalized_std, checkpoint=checkpoint)
+
+        # plot
+        heatmap_plot(total_rewards_normalized_avg, checkpoint, args, opt='avg')
+        logger.info(f"\nGenerate average tournament heatmap")
+        heatmap_plot(total_rewards_normalized_std, checkpoint, args, opt='std')
+        logger.info(f"\nGenerate tournament heatmap std")
+    else:
+        MPI.COMM_WORLD.Send( [total_rewards_normalized, MPI.DOUBLE], dest=0, tag=rank )
+        logger.info(f"\nRank {rank+1} normalized total_reward sent")
+    
+    end_time = MPI.Wtime()
+    if rank == 0:
+        logger.info(f"\nProcessing time: {end_time-start_time}")
+
+
+def heatmap_plot(total_rewards_normalized, checkpoint, args, ranks=None, opt='default'):
+    if opt == 'default':
+        if ranks == None:
+            raise Exception(f'No rank info for default heatmap plot!')
     # convert to dataframe for plotting
     heat_data_P1 = total_rewards_normalized[:,:,0]
     heat_data_P2 = total_rewards_normalized[:,:,1]
@@ -160,26 +196,56 @@ def heatmap_plot(total_rewards_normalized, checkpoint, ranks, args):
     df_P1 = pd.DataFrame(data=heat_data_P1, index=P1_ticks, columns=P1_ticks)
     df_P2 = pd.DataFrame(data=heat_data_P2, index=P2_ticks, columns=P2_ticks)
 
+    # set title & labels
+    P1_title = 'default_title_P1'
+    P2_title = 'default_title_P2'
+    xlabel = 'default_xlabel'
+    ylabel = 'default_ylabel'
+    P1_savename = 'default_savename_P1'
+    P2_savename = 'default_savename_P2'
+    if opt == 'default':
+        P1_title = f"{args.env_name} seed {ranks[0]+1} vs. seed {ranks[1]+1} player 1 average score with {args.games} gameplays"
+        P2_title = f"{args.env_name} seed {ranks[0]+1} vs. seed {ranks[1]+1} player 2 average score with {args.games} gameplays"
+        xlabel = f"Player 2 (Seed {ranks[1]+1})"
+        ylabel = f"Player 1 (Seed {ranks[0]+1})"
+        P1_savename = f'./heatmap/{args.env_name}_{ranks[0]+1}vs{ranks[1]+1}_P1_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
+        P2_savename = f'./heatmap/{args.env_name}_{ranks[0]+1}vs{ranks[1]+1}_P2_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
+    elif opt == 'avg':
+        P1_title = f"{args.env_name} player 1 average score with {args.games} gameplays across {args.population} seeds"
+        P2_title = f"{args.env_name} player 2 average score with {args.games} gameplays across {args.population} seeds"
+        xlabel = f"Player 2"
+        ylabel = f"Player 1"
+        P1_savename = f'./heatmap/{args.env_name}_avg_P1_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
+        P2_savename = f'./heatmap/{args.env_name}_avg_P2_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
+    elif opt == 'std':
+        P1_title = f"{args.env_name} player 1 average score std with {args.games} gameplays across {args.population} seeds"
+        P2_title = f"{args.env_name} player 2 average score std with {args.games} gameplays across {args.population} seeds"
+        xlabel = f"Player 2"
+        ylabel = f"Player 1"
+        P1_savename = f'./heatmap/{args.env_name}_std_P1_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
+        P2_savename = f'./heatmap/{args.env_name}_std_P2_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
+
     # generate heat plot
     sns.set(rc={'figure.figsize':(15,12)})
     ax = sns.heatmap(df_P1, annot=True, fmt=".2f", vmin=-1, vmax=1, cmap=args.cmap)
-    ax.set_title(f"{args.env_name} seed {ranks[0]+1} vs. seed {ranks[1]+1} player 1 average score with {args.games} gameplays".title(),fontsize=25)
-    ax.set_xlabel(f"Player 2 (Seed {ranks[1]+1})", fontsize=20)
-    ax.set_ylabel(f"Player 1 (Seed {ranks[0]+1})", fontsize=20)
+    ax.set_title(P1_title.title(),fontsize=25)
+    ax.set_xlabel(xlabel, fontsize=20)
+    ax.set_ylabel(ylabel, fontsize=20)
     ax.xaxis.tick_top()
     plt.xticks(rotation=45)
     fig = ax.get_figure()
-    fig.savefig(f'./heatmap/{args.env_name}_{ranks[0]+1}vs{ranks[1]+1}_P1_{args.arange[0]}_{args.arange[1]}_{args.arange[2]}_g{args.games}.png') 
-
+    fig.savefig(P1_savename) 
     fig.clf()
+
     ax = sns.heatmap(df_P2, annot=True, fmt=".2f", vmin=-1, vmax=1, cmap=args.cmap)
-    ax.set_title(f"{args.env_name} seed {ranks[0]+1} vs. seed {ranks[1]+1} player 2 average score with {args.games} gameplays".title(),fontsize=25)
-    ax.set_xlabel(f"Player 2 (Seed {ranks[1]+1})", fontsize=20)
-    ax.set_ylabel(f"Player 1 (Seed {ranks[0]+1})", fontsize=20)
+    ax.set_title(P2_title.title(),fontsize=25)
+    ax.set_xlabel(xlabel, fontsize=20)
+    ax.set_ylabel(ylabel, fontsize=20)
     ax.xaxis.tick_top()
     plt.xticks(rotation=45)
     fig = ax.get_figure()
-    fig.savefig(f'./heatmap/{args.env_name}_{ranks[0]+1}vs{ranks[1]+1}_P2_{args.arange[0]}_{args.arange[1]}_{args.arange[2]}_g{args.games}.png')
+    fig.savefig(P2_savename)
+    fig.clf()
 
 
 def cli() -> None:
