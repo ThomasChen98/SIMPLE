@@ -137,7 +137,7 @@ def cli() -> None:
 
   parser.add_argument("--reset", "-r", action = 'store_true', default = False
                 , help="Start retraining the model from scratch")
-  parser.add_argument("--opponent_type", "-o", type = str, default = 'best'
+  parser.add_argument("--opponent_type", "-o", type = str, default = 'mostly_best'
               , help="best / mostly_best / random / base / rules - the type of opponent to train against")
   parser.add_argument("--debug", "-d", action = 'store_true', default = False
               , help="Debug logging")

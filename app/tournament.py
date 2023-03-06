@@ -3,8 +3,8 @@
 ### Date: Feb 24, 2023
 
 ### Sample usage
-# sudo docker-compose exec app python3 heatmap.py -e connect4 -g 100 -a 1 100 5
-# sudo docker-compose exec app python3 heatmap.py -e connect4 -g 100 -a 1 100 5 -l connect4_1_100_5_g100.npz
+# sudo docker-compose exec app mpirun -np 25 python3 tournament.py -e tictactoe -g 100 -a 1 25 2 -p 5 -ld data/SP_tictactoe_best/Model
+# sudo docker-compose exec app python3 tournament.py -e connect4 -g 100 -a 1 100 5 -l connect4_1_100_5_g100.npz
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
@@ -23,7 +23,9 @@ import matplotlib.pylab as plt
 from stable_baselines import logger
 from stable_baselines.common import set_global_seeds
 
-from utils.files import load_selected_models, write_results
+from mpi4py import MPI
+
+from utils.files import load_selected_models
 from utils.register import get_environment
 from utils.agents import Agent
 
@@ -31,8 +33,13 @@ import config
 
 
 def main(args):
+    # check mpi rank
+    rank = MPI.COMM_WORLD.Get_rank()
+    if MPI.COMM_WORLD.Get_size() != args.population**2:
+        raise Exception(f'MPI processors number should be {args.population**2}!')
+
     # setup logger
-    logger.configure(config.LOGDIR)
+    logger.configure(config.TOURNAMENTLOGDIR)
 
     if args.debug:
         logger.set_level(config.DEBUG)
@@ -57,9 +64,14 @@ def main(args):
 
     # load the policies
     checkpoint = np.arange(args.arange[0],args.arange[1],args.arange[2])
-    logger.info(f'\nLoading {args.env_name} models...')
-    models, model_list = load_selected_models(env,checkpoint)
-    policy_num = len(model_list)
+    ego_rank = rank//args.population
+    opp_rank = rank%args.population
+    logger.info(f'\n##### Rank {rank+1} ##### Loading {args.env_name} {ego_rank+1}th model as ego, {opp_rank+1}th model as opponent...')
+    ego_models, ego_model_list = load_selected_models(args.load_dir,env,ego_rank,checkpoint)
+    opp_models, opp_model_list = load_selected_models(args.load_dir,env,opp_rank,checkpoint)
+    if len(ego_models) != len(opp_models):
+        raise Exception(f'# of ego policies and opponent policies does not match!')
+    policy_num = len(ego_models)
     
     # total reward
     total_rewards = np.zeros((policy_num, policy_num, env.n_players))
@@ -72,9 +84,9 @@ def main(args):
     for i in range(policy_num):
         for j in range(policy_num):
             # set up pairing agents
-            agents.append(Agent('P1', models[i]))
-            agents.append(Agent('P2', models[j]))
-            logger.debug(f'Pair {i+1}-{j+1}: P1 = {model_list[i]}: {agents[0]}, P2 = {model_list[j]}: {agents[1]}')
+            agents.append(Agent('P1', ego_models[i]))
+            agents.append(Agent('P2', opp_models[j]))
+            logger.debug(f'Pair {i+1}-{j+1}: P1 = {ego_model_list[i]}: {agents[0]}, P2 = {opp_model_list[j]}: {agents[1]}')
 
             for game in range(args.games):
                 # reset env
@@ -116,7 +128,7 @@ def main(args):
                         input('Press any key to continue')
                     
                     env.render()
-
+                    
                     logger.debug(f"Gameplay {i+1}-{j+1} #{game+1} step: {total_rewards[i][j]}")
             
                 logger.debug(f"Gameplay {i+1}-{j+1} #{game+1} finished: {total_rewards[i][j]}")
@@ -132,41 +144,42 @@ def main(args):
     total_rewards_normalized = total_rewards / args.games
 
     # save data
-    save_name = f'./heatmap/{args.env_name}_{args.arange[0]}_{args.arange[1]}_{args.arange[2]}_g{args.games}'
-    np.savez_compressed(save_name, total_rewards_normalized=total_rewards_normalized, checkpoint=checkpoint)
+    save_name = f'./heatmap/{args.env_name}_{ego_rank+1}vs{opp_rank+1}_{args.arange[0]}_{args.arange[1]}_{args.arange[2]}_g{args.games}'
+    np.savez_compressed(save_name, total_rewards_normalized=total_rewards_normalized, checkpoint=checkpoint, ranks=[ego_rank, opp_rank])
 
     # plot
-    heatmap_plot(total_rewards_normalized, checkpoint, args)
+    heatmap_plot(total_rewards_normalized, checkpoint, [ego_rank, opp_rank], args)
  
 
-def heatmap_plot(total_rewards_normalized, checkpoint, args):
+def heatmap_plot(total_rewards_normalized, checkpoint, ranks, args):
     # convert to dataframe for plotting
     heat_data_P1 = total_rewards_normalized[:,:,0]
     heat_data_P2 = total_rewards_normalized[:,:,1]
-    heatmap_ticks = ["model_"+str(x) for x in checkpoint]
-    df_P1 = pd.DataFrame(data=heat_data_P1, index=heatmap_ticks, columns=heatmap_ticks)
-    df_P2 = pd.DataFrame(data=heat_data_P2, index=heatmap_ticks, columns=heatmap_ticks)
+    P1_ticks = ["gen "+str(x) for x in checkpoint]
+    P2_ticks = ["gen "+str(x) for x in checkpoint]
+    df_P1 = pd.DataFrame(data=heat_data_P1, index=P1_ticks, columns=P1_ticks)
+    df_P2 = pd.DataFrame(data=heat_data_P2, index=P2_ticks, columns=P2_ticks)
 
     # generate heat plot
     sns.set(rc={'figure.figsize':(15,12)})
     ax = sns.heatmap(df_P1, annot=True, fmt=".2f", vmin=-1, vmax=1, cmap=args.cmap)
-    ax.set_title(f"{args.env_name} player 1 average score with {args.games} gameplays".title(),fontsize=25)
-    ax.set_xlabel("Player 2", fontsize=20)
-    ax.set_ylabel("Player 1", fontsize=20)
+    ax.set_title(f"{args.env_name} seed {ranks[0]+1} vs. seed {ranks[1]+1} player 1 average score with {args.games} gameplays".title(),fontsize=25)
+    ax.set_xlabel(f"Player 2 (Seed {ranks[1]+1})", fontsize=20)
+    ax.set_ylabel(f"Player 1 (Seed {ranks[0]+1})", fontsize=20)
     ax.xaxis.tick_top()
     plt.xticks(rotation=45)
     fig = ax.get_figure()
-    fig.savefig(f'./heatmap/P1_{args.env_name}_{args.arange[0]}_{args.arange[1]}_{args.arange[2]}_g{args.games}.png') 
+    fig.savefig(f'./heatmap/{args.env_name}_{ranks[0]+1}vs{ranks[1]+1}_P1_{args.arange[0]}_{args.arange[1]}_{args.arange[2]}_g{args.games}.png') 
 
     fig.clf()
     ax = sns.heatmap(df_P2, annot=True, fmt=".2f", vmin=-1, vmax=1, cmap=args.cmap)
-    ax.set_title(f"{args.env_name} player 2 average score with {args.games} gameplays".title(),fontsize=25)
-    ax.set_xlabel("Player 2", fontsize=20)
-    ax.set_ylabel("Player 1", fontsize=20)
+    ax.set_title(f"{args.env_name} seed {ranks[0]+1} vs. seed {ranks[1]+1} player 2 average score with {args.games} gameplays".title(),fontsize=25)
+    ax.set_xlabel(f"Player 2 (Seed {ranks[1]+1})", fontsize=20)
+    ax.set_ylabel(f"Player 1 (Seed {ranks[0]+1})", fontsize=20)
     ax.xaxis.tick_top()
     plt.xticks(rotation=45)
     fig = ax.get_figure()
-    fig.savefig(f'./heatmap/P2_{args.env_name}_{args.arange[0]}_{args.arange[1]}_{args.arange[2]}_g{args.games}.png')
+    fig.savefig(f'./heatmap/{args.env_name}_{ranks[0]+1}vs{ranks[1]+1}_P2_{args.arange[0]}_{args.arange[1]}_{args.arange[2]}_g{args.games}.png')
 
 
 def cli() -> None:
@@ -194,13 +207,17 @@ def cli() -> None:
                 , help="Number of games to play)")
   parser.add_argument("--load", "-l",  type = str, default = None
                 , help="Which npz to load for plotting?")
+  parser.add_argument("--load_dir", "-ld", type = str, default = None
+                , help="Which directory to load models?")
   parser.add_argument("--manual", "-m",  action = 'store_true', default = False
                 , help="Manual update of the game state on step")
   parser.add_argument("--n_players", "-n", type = int, default = 3
                 , help="Number of players in the game (if applicable)")
+  parser.add_argument("--population", "-p", type = int, default = 5
+                , help="Pupulation size")
   parser.add_argument("--randomise_players", "-r",  action = 'store_true', default = False
                 , help="Randomise the player order")
-  parser.add_argument("--seed", "-s",  type = int, default = 17
+  parser.add_argument("--seed", "-s",  type = int, default = 5 # is different from all trainning env
                 , help="Random seed")
   parser.add_argument("--verbose", "-v",  action = 'store_true', default = False
                 , help="Show observation on debug logging")
