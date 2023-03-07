@@ -161,6 +161,36 @@ def load_model_custom(dir, env, name):
     
     return ppo_model
 
+def load_all_best_models(dir, policy_list, env):
+    models = []
+    modellist = []
+    for pl in policy_list:
+        load_path = os.path.join(dir, pl, 'models')
+        loadlist = [d for d in os.listdir(load_path)]
+        loadlist.sort()
+        for d in loadlist:
+            for f in os.listdir(os.path.join(load_path, d)):
+                if f.startswith("best_model"):
+                    filename = os.path.join(load_path, d, f)
+                    longnamelist = filename.split('/')
+                    longname = longnamelist[1]
+                    keywordlist = longname.split('_')
+                    modelname = keywordlist[0]+'_'+keywordlist[2]+'_'+d
+                    logger.info(f'Load {filename} as {modelname}')
+                    # load model
+                    cont = True
+                    while cont:
+                        try:
+                            ppo_model = PPO1.load(filename, env=env)
+                            cont = False
+                        except Exception as e:
+                            time.sleep(5)
+                            print(e)
+                    # append model
+                    models.append(ppo_model)
+                    modellist.append(modelname)
+    return models, modellist
+
 def get_best_model_name(env_name):
     modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'{MPI.COMM_WORLD.Get_rank()+1}')) if f.startswith("_model")]
     
