@@ -1,4 +1,4 @@
-# docker-compose exec app mpirun -np 5 python3 train_SP.py -r -e connect4
+# docker-compose exec app mpirun -np 5 python3 train_PP.py -r -e tictactoe
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
@@ -80,7 +80,7 @@ def main(args):
 
   if args.reset or not os.path.exists(os.path.join(model_dir, 'best_model.zip')):
     logger.info('\nLoading the base PPO agent to train...')
-    model = PPO1.load(os.path.join(model_dir, 'base.zip'), env, **params)
+    model = PPO1.load(os.path.join(model_dir, f'base_{rank+1}.zip'), env, **params)
   else:
     logger.info('\nLoading the best_model.zip PPO agent to continue training...')
     model = PPO1.load(os.path.join(model_dir, 'best_model.zip'), env, **params)
@@ -116,7 +116,7 @@ def main(args):
 
   logger.info('\nSetup complete - commencing learning...\n')
 
-  model.learn(total_timesteps=int(2e7), callback=[eval_callback], reset_num_timesteps = False, tb_log_name="tb")
+  model.learn(total_timesteps=int(1e7), callback=[eval_callback], reset_num_timesteps = False, tb_log_name="tb")
 
   env.close()
   del env
@@ -134,7 +134,7 @@ def cli() -> None:
 
   parser.add_argument("--reset", "-r", action = 'store_true', default = False
                 , help="Start retraining the model from scratch")
-  parser.add_argument("--opponent_type", "-o", type = str, default = 'mostly_best'
+  parser.add_argument("--opponent_type", "-o", type = str, default = 'best'
               , help="best / mostly_best / random / base / rules - the type of opponent to train against")
   parser.add_argument("--debug", "-d", action = 'store_true', default = False
               , help="Debug logging")

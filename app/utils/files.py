@@ -64,8 +64,44 @@ def load_model(env, name):
 
                 ppo_model = PPO1(get_network_arch(env.name), env=env)
                 ppo_model.save(os.path.join(config.MODELDIR, env.name, f'{rank+1}', 'base.zip'))
-                if rank == 0:
-                    logger.info(f'Saving base.zip PPO model...')
+                logger.info(f'Saving base.zip PPO model...')
+
+                cont = False
+            except IOError as e:
+                sys.exit(f'Check zoo/{env.name}/ exists and read/write permission granted to user')
+            except Exception as e:
+                logger.error(e)
+                time.sleep(2)
+                
+    else:
+        raise Exception(f'\n{filename} not found')
+    
+    return ppo_model
+
+def load_model_with_rank(env, name, opp_rank):
+
+    my_rank = MPI.COMM_WORLD.Get_rank()
+
+    filename = os.path.join(config.MODELDIR, env.name, f'{opp_rank+1}', name)
+    if os.path.exists(filename):
+        logger.info(f'Rank {my_rank+1} loading {name}')
+        cont = True
+        while cont:
+            try:
+                ppo_model = PPO1.load(filename, env=env)
+                cont = False
+            except Exception as e:
+                time.sleep(5)
+                print(e)
+    
+    elif name == 'base.zip':
+        cont = True
+        while cont:
+            try:
+
+                ppo_model = PPO1(get_network_arch(env.name), env=env)
+                ppo_model.save(os.path.join(config.MODELDIR, env.name, f'{opp_rank+1}', f'base_{opp_rank+1}.zip'))
+                logger.info(f'Rank {my_rank+1} saving base_{opp_rank+1}.zip PPO model...')
 
                 cont = False
             except IOError as e:
@@ -85,6 +121,14 @@ def load_all_models(env):
     models = [load_model(env, 'base.zip')]
     for model_name in modellist:
         models.append(load_model(env, name = model_name))
+    return models
+
+def load_all_models_pp(env):
+    modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env.name, f'{MPI.COMM_WORLD.Get_rank()+1}')) if f.startswith("_model")]
+    modellist.sort()
+    models = [load_model_with_rank(env, 'base.zip', MPI.COMM_WORLD.Get_rank())]
+    for model_name in modellist:
+        models.append(load_model_with_rank(env, model_name, MPI.COMM_WORLD.Get_rank()))
     return models
 
 def load_selected_models(dir, env, rank, checkpoints):
@@ -122,6 +166,21 @@ def get_best_model_name(env_name):
     
     if len(modellist)==0:
         filename = None
+    else:
+        modellist.sort()
+        filename = modellist[-1]
+        
+    return filename
+
+def get_best_model_name_with_rank(env_name, opp_rank):
+    modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'{opp_rank+1}')) if f.startswith("_model")]
+    
+    if len(modellist)==0:
+        modellist_with_base = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'{opp_rank+1}'))]
+        if len(modellist_with_base) != 0:
+            filename = f'base_{opp_rank+1}.zip'
+        else:
+            filename = None
     else:
         modellist.sort()
         filename = modellist[-1]

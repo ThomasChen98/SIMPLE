@@ -2,7 +2,7 @@ import os
 import numpy as np
 import random
 
-from utils.files import load_model, load_all_models, get_best_model_name
+from utils.files import load_model_with_rank, load_all_models_pp, get_best_model_name_with_rank
 from utils.agents import Agent
 
 from mpi4py import MPI
@@ -14,23 +14,28 @@ from stable_baselines import logger
 def populationplay_wrapper(env):
     class PopulationPlayEnv(env):
         # wrapper over the normal single player env, but loads the best self play model
-        def __init__(self, opponent_type, verbose):
+        def __init__(self, opponent_type, verbose, update = True):
             super(PopulationPlayEnv, self).__init__(verbose)
-            self.opponent_type = opponent_type
-            self.opponent_models = load_all_models(self)
-            self.best_model_name = get_best_model_name(self.name)
             self.rank = MPI.COMM_WORLD.Get_rank()
             self.population = MPI.COMM_WORLD.Get_size()
+            self.opponent_type = opponent_type
+            self.opponent_models = load_all_models_pp(self)
+            self.best_model_name = get_best_model_name_with_rank(self.name, self.rank)
+            open(os.path.join(config.MODELDIR, self.name, f'{self.rank+1}','_update.flag'), 'w+').close()
 
         def setup_opponents(self):
             if self.opponent_type == 'rules':
                 self.opponent_agent = Agent('rules')
             else:
-                # incremental load of new model
-                best_model_name = get_best_model_name(self.name)
-                if self.best_model_name != best_model_name:
-                    self.opponent_models.append(load_model(self, best_model_name ))
-                    self.best_model_name = best_model_name
+                if self.check_update():
+                    opponent_rank = random.randint(0, self.population-1)
+                    logger.info(f'\nRank {self.rank+1} new opponent rank {opponent_rank+1}')
+                    # incremental load of new model
+                    best_model_name = get_best_model_name_with_rank(self.name, opponent_rank)
+                    logger.info(f'Rank {self.rank+1} new opponent model: {best_model_name}, previous opponent model = {self.best_model_name}')
+                    if self.best_model_name != best_model_name:
+                        self.opponent_models.append(load_model_with_rank(self, best_model_name, opponent_rank))
+                        self.best_model_name = best_model_name
 
                 if self.opponent_type == 'random':
                     start = 0
@@ -114,5 +119,15 @@ def populationplay_wrapper(env):
                 self.render()
 
             return observation, agent_reward, done, {} 
+        
+        def check_update(self):
+            updatefile = [f for f in os.listdir(os.path.join(config.MODELDIR, self.name, f'{self.rank+1}')) if f.startswith("_update")]
+            
+            if len(updatefile) != 0:
+                os.remove(os.path.join(config.MODELDIR, self.name, f'{self.rank+1}', updatefile[0]))
+                return True
+            
+            return False
+
 
     return PopulationPlayEnv
