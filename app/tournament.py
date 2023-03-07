@@ -81,7 +81,7 @@ def main(args):
     agents = []
     
     # play games
-    logger.info(f'\nPlaying {args.games} games...')
+    logger.info(f'\nPlaying {args.games} games for each of {policy_num} policies...')
     for i in range(policy_num):
         for j in range(policy_num):
             # set up pairing agents
@@ -179,6 +179,7 @@ def main(args):
         MPI.COMM_WORLD.Send( [total_rewards_normalized, MPI.DOUBLE], dest=0, tag=rank )
         logger.info(f"\nRank {rank+1} normalized total_reward sent")
     
+    # calculate processing time
     end_time = MPI.Wtime()
     if rank == 0:
         logger.info(f"\nProcessing time: {end_time-start_time}")
@@ -201,8 +202,8 @@ def heatmap_plot(total_rewards_normalized, checkpoint, args, ranks=None, opt='de
     P2_title = 'default_title_P2'
     xlabel = 'default_xlabel'
     ylabel = 'default_ylabel'
-    P1_savename = 'default_savename_P1'
-    P2_savename = 'default_savename_P2'
+    P1_savename = 'default_savename_P1.png'
+    P2_savename = 'default_savename_P2.png'
     if opt == 'default':
         P1_title = f"{args.env_name} seed {ranks[0]+1} vs. seed {ranks[1]+1} player 1 average score with {args.games} gameplays"
         P2_title = f"{args.env_name} seed {ranks[0]+1} vs. seed {ranks[1]+1} player 2 average score with {args.games} gameplays"

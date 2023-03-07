@@ -1,4 +1,4 @@
-# docker-compose exec app python3 train.py -r -e butterfly
+# docker-compose exec app mpirun -np 5 python3 train_SP.py -r -e tictactoe
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
@@ -119,7 +119,7 @@ def main(args):
 
   logger.info('\nSetup complete - commencing learning...\n')
 
-  model.learn(total_timesteps=int(1e7), callback=[eval_callback], reset_num_timesteps = False, tb_log_name="tb")
+  model.learn(total_timesteps=int(2e7), callback=[eval_callback], reset_num_timesteps = False, tb_log_name="tb")
 
   env.close()
   del env
