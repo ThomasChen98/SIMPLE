@@ -20,10 +20,10 @@ from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common import set_global_seeds
 from stable_baselines import logger
 
-from utils.callbacks import SelfPlayCallback
+from utils.callbacks import PopulationPlayCallback
 from utils.files import reset_logs, reset_models
 from utils.register import get_network_arch, get_environment
-from utils.selfplay import selfplay_wrapper
+from utils.populationplay import populationplay_wrapper
 
 import config
 
@@ -43,10 +43,7 @@ def main(args):
   if args.reset:
     reset_models(model_dir)
   
-  if rank == 0:
-    logger.configure(config.LOGDIR)
-  else:
-    logger.configure(format_strs=[])
+  logger.configure(config.LOGDIR)
 
   if args.debug:
     logger.set_level(config.DEBUG)
@@ -57,9 +54,9 @@ def main(args):
   workerseed = args.seed + 10000 * MPI.COMM_WORLD.Get_rank()
   set_global_seeds(workerseed)
 
-  logger.info('\nSetting up the selfplay training environment opponents...')
+  logger.info('\nSetting up the population play training environment opponents...')
   base_env = get_environment(args.env_name)
-  env = selfplay_wrapper(base_env)(opponent_type = args.opponent_type, verbose = args.verbose)
+  env = populationplay_wrapper(base_env)(opponent_type = args.opponent_type, verbose = args.verbose)
   env.seed(workerseed)
 
   
@@ -89,9 +86,9 @@ def main(args):
     model = PPO1.load(os.path.join(model_dir, 'best_model.zip'), env, **params)
 
   #Callbacks
-  logger.info('\nSetting up the selfplay evaluation environment opponents...')
+  logger.info('\nSetting up the population play evaluation environment opponents...')
   callback_args = {
-    'eval_env': selfplay_wrapper(base_env)(opponent_type = args.opponent_type, verbose = args.verbose),
+    'eval_env': populationplay_wrapper(base_env)(opponent_type = args.opponent_type, verbose = args.verbose),
     'best_model_save_path' : temp_model_dir,
     'log_path' : config.LOGDIR,
     'eval_freq' : args.eval_freq,
@@ -105,7 +102,7 @@ def main(args):
     logger.info('\nSetting up the evaluation environment against the rules-based agent...')
     # Evaluate against a 'rules' agent as well
     eval_actual_callback = EvalCallback(
-      eval_env = selfplay_wrapper(base_env)(opponent_type = 'rules', verbose = args.verbose),
+      eval_env = populationplay_wrapper(base_env)(opponent_type = 'rules', verbose = args.verbose),
       eval_freq=1,
       n_eval_episodes=args.n_eval_episodes,
       deterministic = args.best,
@@ -115,7 +112,7 @@ def main(args):
     callback_args['callback_on_new_best'] = eval_actual_callback
     
   # Evaluate the agent against previous versions
-  eval_callback = SelfPlayCallback(args.opponent_type, args.threshold, args.env_name, **callback_args)
+  eval_callback = PopulationPlayCallback(args.opponent_type, args.threshold, args.env_name, **callback_args)
 
   logger.info('\nSetup complete - commencing learning...\n')
 

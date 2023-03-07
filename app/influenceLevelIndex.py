@@ -83,11 +83,16 @@ def main(args):
 
     # sampling distribution
     seed_sampling_dist = np.ones(args.population) / args.population # uniform distribution
-    policy_sampling_dist = np.ones(policy_num) / policy_num
-    # policy_sampling_dist = np.zeros(policy_num)
-    # delta = 2/policy_num/(policy_num-1)
-    # for i in range( 1, policy_num ):
-    #     policy_sampling_dist[i] = policy_sampling_dist[i-1] + delta # straight line with 0 at policy_sampling_dist[0]
+    policy_sampling_dist = np.zeros(policy_num)
+    if args.policy_sampling_dist == 'uni':
+        policy_sampling_dist = np.ones(policy_num) / policy_num
+    elif args.policy_sampling_dist == 'tri':
+        policy_sampling_dist = np.zeros(policy_num)
+        delta = 2/policy_num/(policy_num-1)
+        for i in range( 1, policy_num ):
+            policy_sampling_dist[i] = policy_sampling_dist[i-1] + delta # straight line with 0 at policy_sampling_dist[0]
+    else:
+        raise Exception(f'Policy sampling distribution only allow uni or tri!')
 
 
     # probability distribution
@@ -348,6 +353,8 @@ def cli() -> None:
                 , help="Manual update of the game state on step")
   parser.add_argument("--n_players", "-n", type = int, default = 3
                 , help="Number of players in the game (if applicable)")
+  parser.add_argument("--policy_sampling_dist", "-ps", type = str, default = 'uni'
+                , help="Policy sampling distribution, uni-uniform, tri-triangular")
   parser.add_argument("--population", "-p", type = int, default = 5
                 , help="Pupulation size")
   parser.add_argument("--randomise_players", "-r",  action = 'store_true', default = False
