@@ -60,7 +60,7 @@ def main(args):
     set_global_seeds(args.seed)
 
     # load the policies
-    policy_dir = ['SP_tictactoe_best_10M_s5', 'SP_tictactoe_mostlybest_10M_s5', 'PP_tictactoe_best_10M_s5']
+    policy_dir = ['SP_connect4_best_15M_s5', 'PP_connect4_best_15M_s5']
     models, model_list = load_all_best_models(args.load_dir, policy_dir, env)
     policy_num = len(models)
 
@@ -144,8 +144,7 @@ def main(args):
     
     # calculate processing time
     end_time = MPI.Wtime()
-    if rank == 0:
-        logger.info(f"\nProcessing time: {end_time-start_time}")
+    logger.info(f"\nProcessing time: {end_time-start_time}")
 
 
 def heatmap_plot(total_rewards_normalized, model_list, args):
