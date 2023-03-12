@@ -1,4 +1,4 @@
-# sudo docker-compose exec app mpirun -np 5 python3 train_PP.py -r -e tictactoe
+# sudo docker-compose exec app mpirun -np 5 python3 train_FCP.py -r -e tictactoe
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
@@ -20,10 +20,10 @@ from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common import set_global_seeds
 from stable_baselines import logger
 
-from utils.callbacks import PopulationPlayCallback
+from utils.callbacks import FictitiousCoPlayCallback
 from utils.files import reset_logs, reset_models
 from utils.register import get_network_arch, get_environment
-from utils.populationplay import populationplay_wrapper
+from utils.fictitiouscoplay import fictitiouscoplay_wrapper
 
 import config
 
@@ -55,9 +55,9 @@ def main(args):
   workerseed = args.seed + 10000 * MPI.COMM_WORLD.Get_rank()
   set_global_seeds(workerseed)
 
-  logger.info('\nSetting up the population play training environment opponents...')
+  logger.info('\nSetting up the fictitious co-play training environment opponents...')
   base_env = get_environment(args.env_name)
-  env = populationplay_wrapper(base_env)(opponent_type = args.opponent_type, verbose = args.verbose)
+  env = fictitiouscoplay_wrapper(base_env)(opponent_type = args.opponent_type, verbose = args.verbose)
   env.seed(workerseed)
 
   
@@ -87,9 +87,9 @@ def main(args):
     model = PPO1.load(os.path.join(model_dir, 'best_model.zip'), env, **params)
 
   #Callbacks
-  logger.info('\nSetting up the population play evaluation environment opponents...')
+  logger.info('\nSetting up the fictitious co-play evaluation environment opponents...')
   callback_args = {
-    'eval_env': populationplay_wrapper(base_env)(opponent_type = args.opponent_type, verbose = args.verbose),
+    'eval_env': fictitiouscoplay_wrapper(base_env)(opponent_type = args.opponent_type, verbose = args.verbose),
     'best_model_save_path' : temp_model_dir,
     'log_path' : config.LOGDIR,
     'eval_freq' : args.eval_freq,
@@ -103,7 +103,7 @@ def main(args):
     logger.info('\nSetting up the evaluation environment against the rules-based agent...')
     # Evaluate against a 'rules' agent as well
     eval_actual_callback = EvalCallback(
-      eval_env = populationplay_wrapper(base_env)(opponent_type = 'rules', verbose = args.verbose),
+      eval_env = fictitiouscoplay_wrapper(base_env)(opponent_type = 'rules', verbose = args.verbose),
       eval_freq=1,
       n_eval_episodes=args.n_eval_episodes,
       deterministic = args.best,
@@ -113,7 +113,7 @@ def main(args):
     callback_args['callback_on_new_best'] = eval_actual_callback
     
   # Evaluate the agent against previous versions
-  eval_callback = PopulationPlayCallback(args.opponent_type, args.threshold, args.env_name, **callback_args)
+  eval_callback = FictitiousCoPlayCallback(args.opponent_type, args.threshold, args.env_name, **callback_args)
 
   logger.info('\nSetup complete - commencing learning...\n')
 
@@ -122,7 +122,7 @@ def main(args):
   # calculate processing time
   end_time = MPI.Wtime()
   logger.info(f"\nProcessing time: {end_time-start_time}")
-  
+
   env.close()
   del env
 

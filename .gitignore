@@ -122,7 +122,7 @@ venv.bak/
 app/zoo/pretrained/*
 app/data/*
 app/old_data/*
-app/heatmap/*
+app/plot_tournament/*
 app/logs_tournament/*
-app/ridgeline/*
-app/logs_ili/*
+app/plot_index/*
+app/logs_index/*

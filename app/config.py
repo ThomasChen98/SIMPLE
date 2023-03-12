@@ -10,7 +10,7 @@ RESULTSPATH = 'viz/results.csv'
 TMPMODELDIR = "zoo/tmp"
 MODELDIR = "zoo/pretrained"
 
-HEATMAPDIR = "heatmap"
-RIDGELINEDIR = "ridgeline"
+HEATMAPDIR = "plot_tournament"
+RIDGELINEDIR = "plot_index"
 TOURNAMENTLOGDIR = "logs_tournament"
-ILILOGDIR = "logs_ili"
+ILILOGDIR = "logs_index"

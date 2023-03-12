@@ -1,10 +1,10 @@
-### Generate heatmap for self-play agents
+### Generate heatmap between agents trained by different methods
 ### Author: Yuxin Chen
-### Date: Feb 24, 2023
+### Date: Mar 7, 2023
 
 ### Sample usage
-# sudo docker-compose exec app mpirun -np 25 python3 tournament.py -e tictactoe -g 100 -a 1 25 2 -p 5 -ld data/SP_tictactoe_best_10M_s5/models
-# sudo docker-compose exec app python3 tournament.py -e connect4 -g 100 -a 1 100 5 -l connect4_1.100.5_g100.npz
+# sudo docker-compose exec app python3 tournamentCrossPolicy.py -e tictactoe -g 100 -ld data
+# sudo docker-compose exec app python3 tournamentCrossPolicy.py -e tictactoe -g 100 -l tictactoe_g5.npz
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
@@ -25,7 +25,7 @@ from stable_baselines.common import set_global_seeds
 
 from mpi4py import MPI
 
-from utils.files import load_selected_models
+from utils.files import load_all_best_models
 from utils.register import get_environment
 from utils.agents import Agent
 
@@ -34,10 +34,8 @@ import config
 
 def main(args):
     start_time = MPI.Wtime()
-    # check mpi rank
+
     rank = MPI.COMM_WORLD.Get_rank()
-    if MPI.COMM_WORLD.Get_size() != args.population**2:
-        raise Exception(f'MPI processors number should be {args.population**2}!')
 
     # setup logger
     logger.configure(config.TOURNAMENTLOGDIR)
@@ -53,9 +51,9 @@ def main(args):
     elif args.load != None:
         logger.info(f'\nLoading {args.load} data and plot heatmap...')
         loaded = np.load(os.path.join(config.HEATMAPDIR, args.load))
-        total_rewards_normalized = loaded['total_rewards_normalized']
-        checkpoint = loaded['checkpoint']
-        heatmap_plot(total_rewards_normalized, checkpoint, args)
+        world_mean_total_rewards = loaded['world_mean_total_rewards']
+        policy_dir = loaded['policy_dir']
+        heatmap_plot_total(world_mean_total_rewards, policy_dir, args)
         return
     
     # make environment with seed
@@ -64,26 +62,30 @@ def main(args):
     set_global_seeds(args.seed)
 
     # load the policies
-    checkpoint = np.arange(args.arange[0],args.arange[1],args.arange[2])
-    ego_rank = rank//args.population
-    opp_rank = rank%args.population
-    logger.info(f'\n##### Rank {rank+1} #####\nLoading {args.env_name} seed {ego_rank+1} model as ego, seed {opp_rank+1} model as opponent...')
-    ego_models, ego_model_list = load_selected_models(args.load_dir,env,ego_rank,checkpoint)
-    opp_models, opp_model_list = load_selected_models(args.load_dir,env,opp_rank,checkpoint)
-    if len(ego_models) != len(opp_models):
-        raise Exception(f'# of ego policies and opponent policies does not match!')
-    policy_num = len(ego_models)
+    policy_dir = ['SP_tictactoe_10M_s5', 'PP_tictactoe_20M_s3', 'PP_tictactoe_20M_s5', 'PP_tictactoe_20M_s10']
     
+    # check mpi rank
+    if MPI.COMM_WORLD.Get_size() != len(policy_dir)**2:
+        raise Exception(f'MPI processors number should be {len(policy_dir)**2}!')
+    
+    # load models for this rank
+    ego_policy_dir = rank//len(policy_dir)
+    opp_policy_dir = rank%len(policy_dir)
+    ego_models, ego_model_list = load_all_best_models(args.load_dir, policy_dir[ego_policy_dir], env)
+    opp_models, opp_model_list = load_all_best_models(args.load_dir, policy_dir[opp_policy_dir], env)
+    ego_policy_num = len(ego_models)
+    opp_policy_num = len(opp_models)
+
     # total reward
-    total_rewards = np.zeros((policy_num, policy_num, env.n_players))
+    total_rewards = np.zeros((ego_policy_num, opp_policy_num, env.n_players))
 
     # agents
     agents = []
     
     # play games
-    logger.info(f'\nPlaying {args.games} games for each of {policy_num} policies...')
-    for i in range(policy_num):
-        for j in range(policy_num):
+    logger.info(f'\nPlaying {args.games} games for each of {ego_policy_num}x{opp_policy_num} policies...')
+    for i in range(ego_policy_num):
+        for j in range(opp_policy_num):
             # set up pairing agents
             agents.append(Agent('P1', ego_models[i]))
             agents.append(Agent('P2', opp_models[j]))
@@ -145,89 +147,65 @@ def main(args):
     total_rewards_normalized = total_rewards / args.games
 
     # save data
-    save_name = f'./heatmap/{args.env_name}_{ego_rank+1}vs{opp_rank+1}_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}'
-    np.savez_compressed(save_name, total_rewards_normalized=total_rewards_normalized, checkpoint=checkpoint, ranks=[ego_rank, opp_rank])
+    ego_name_vec = policy_dir[ego_policy_dir].split('_')
+    opp_name_vec = policy_dir[opp_policy_dir].split('_')
+    ego_name = f'{ego_name_vec[0].upper()}_{ego_name_vec[-1]}'
+    opp_name = f'{opp_name_vec[0].upper()}_{opp_name_vec[-1]}'
+    save_name = f'./plot_tournament/{args.env_name}_{ego_name}vs{opp_name}_g{args.games}'
+    np.savez_compressed(save_name, total_rewards_normalized=total_rewards_normalized,\
+                        ego_model_list=ego_model_list, opp_model_list=opp_model_list)
 
     # plot
-    heatmap_plot(total_rewards_normalized, checkpoint, args, ranks=[ego_rank, opp_rank])
-    logger.info(f"\nGenerate tournament heatmap for seed {ego_rank+1} vs. seed {opp_rank+1}")
+    heatmap_plot(total_rewards_normalized, ego_model_list, opp_model_list, [ego_name, opp_name], args)
+    logger.info(f"\nGenerate tournament heatmap")
 
-    # plot average heatmap & deviation
+    # plot total map
     if rank == 0:
-        world_total_rewards_normalized = np.zeros((MPI.COMM_WORLD.Get_size(), policy_num, policy_num, env.n_players))
-        world_total_rewards_normalized[0,:,:,:] = total_rewards_normalized
+        world_mean_total_rewards = np.zeros((len(policy_dir), len(policy_dir), env.n_players))
+        world_mean_total_rewards[0,0,:] = total_rewards_normalized.mean(axis=(0, 1))
         for i in range( 1, MPI.COMM_WORLD.Get_size() ):
-            current_total_rewards_normalized = np.zeros((policy_num, policy_num, env.n_players))
-            MPI.COMM_WORLD.Recv( [current_total_rewards_normalized, MPI.DOUBLE], source=i, tag=i )
-            world_total_rewards_normalized[i,:,:,:] = current_total_rewards_normalized
-            logger.info(f"{i+1}th normalized total_reward received")
-        total_rewards_normalized_avg = np.mean(world_total_rewards_normalized, axis=0)
-        total_rewards_normalized_std = np.std(world_total_rewards_normalized, axis=0)
+            current_mean_total_rewards = np.zeros(env.n_players)
+            MPI.COMM_WORLD.Recv( [current_mean_total_rewards, MPI.DOUBLE], source=i, tag=i )
+            col = i//len(policy_dir)
+            row = i%len(policy_dir)
+            world_mean_total_rewards[col,row,:] = current_mean_total_rewards
+            logger.info(f"{i+1}th normalized mean_total_reward received")
 
         # save data
-        avg_name = f'./heatmap/{args.env_name}_avg_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}'
-        std_name = f'./heatmap/{args.env_name}_std_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}'
-        np.savez_compressed(avg_name, total_rewards_normalized=total_rewards_normalized_avg, checkpoint=checkpoint)
-        np.savez_compressed(std_name, total_rewards_normalized=total_rewards_normalized_std, checkpoint=checkpoint)
+        total_name = f'./plot_tournament/{args.env_name}_g{args.games}'
+        np.savez_compressed(total_name, world_mean_total_rewards=world_mean_total_rewards, policy_dir=policy_dir)
 
         # plot
-        heatmap_plot(total_rewards_normalized_avg, checkpoint, args, opt='avg')
-        logger.info(f"\nGenerate average tournament heatmap")
-        heatmap_plot(total_rewards_normalized_std, checkpoint, args, opt='std')
-        logger.info(f"\nGenerate tournament heatmap std")
+        heatmap_plot_total(world_mean_total_rewards, policy_dir, args)
+        logger.info(f"\nGenerate total tournament heatmap")
     else:
-        MPI.COMM_WORLD.Send( [total_rewards_normalized, MPI.DOUBLE], dest=0, tag=rank )
-        logger.info(f"\nRank {rank+1} normalized total_reward sent")
+        MPI.COMM_WORLD.Send( [total_rewards_normalized.mean(axis=(0, 1)), MPI.DOUBLE], dest=0, tag=rank )
+        logger.info(f"\nRank {rank+1} normalized mean_total_reward sent")
     
     # calculate processing time
     end_time = MPI.Wtime()
-    if rank == 0:
-        logger.info(f"\nProcessing time: {end_time-start_time}")
+    logger.info(f"\nProcessing time: {end_time-start_time}")
 
 
-def heatmap_plot(total_rewards_normalized, checkpoint, args, ranks=None, opt='default'):
-    if opt == 'default':
-        if ranks == None:
-            raise Exception(f'No rank info for default heatmap plot!')
+def heatmap_plot(total_rewards_normalized, ego_model_list, opp_model_list, name_list, args):
     # convert to dataframe for plotting
     heat_data_P1 = total_rewards_normalized[:,:,0]
     heat_data_P2 = total_rewards_normalized[:,:,1]
-    P1_ticks = ["gen "+str(x) for x in checkpoint]
-    P2_ticks = ["gen "+str(x) for x in checkpoint]
-    df_P1 = pd.DataFrame(data=heat_data_P1, index=P1_ticks, columns=P1_ticks)
-    df_P2 = pd.DataFrame(data=heat_data_P2, index=P2_ticks, columns=P2_ticks)
+    P1_ticks = [str(x) for x in ego_model_list]
+    P2_ticks = [str(x) for x in opp_model_list]
+    df_P1 = pd.DataFrame(data=heat_data_P1, index=P1_ticks, columns=P2_ticks)
+    df_P2 = pd.DataFrame(data=heat_data_P2, index=P1_ticks, columns=P2_ticks)
 
     # set title & labels
-    P1_title = 'default_title_P1'
-    P2_title = 'default_title_P2'
-    xlabel = 'default_xlabel'
-    ylabel = 'default_ylabel'
-    P1_savename = 'default_savename_P1.png'
-    P2_savename = 'default_savename_P2.png'
-    if opt == 'default':
-        P1_title = f"{args.env_name} seed {ranks[0]+1} vs. seed {ranks[1]+1} player 1 average score with {args.games} gameplays"
-        P2_title = f"{args.env_name} seed {ranks[0]+1} vs. seed {ranks[1]+1} player 2 average score with {args.games} gameplays"
-        xlabel = f"Player 2 (Seed {ranks[1]+1})"
-        ylabel = f"Player 1 (Seed {ranks[0]+1})"
-        P1_savename = f'./heatmap/{args.env_name}_{ranks[0]+1}vs{ranks[1]+1}_P1_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
-        P2_savename = f'./heatmap/{args.env_name}_{ranks[0]+1}vs{ranks[1]+1}_P2_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
-    elif opt == 'avg':
-        P1_title = f"{args.env_name} player 1 average score with {args.games} gameplays across {args.population} seeds"
-        P2_title = f"{args.env_name} player 2 average score with {args.games} gameplays across {args.population} seeds"
-        xlabel = f"Player 2"
-        ylabel = f"Player 1"
-        P1_savename = f'./heatmap/{args.env_name}_avg_P1_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
-        P2_savename = f'./heatmap/{args.env_name}_avg_P2_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
-    elif opt == 'std':
-        P1_title = f"{args.env_name} player 1 average score std with {args.games} gameplays across {args.population} seeds"
-        P2_title = f"{args.env_name} player 2 average score std with {args.games} gameplays across {args.population} seeds"
-        xlabel = f"Player 2"
-        ylabel = f"Player 1"
-        P1_savename = f'./heatmap/{args.env_name}_std_P1_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
-        P2_savename = f'./heatmap/{args.env_name}_std_P2_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
+    P1_title = f"{args.env_name} {name_list[0]} vs. {name_list[1]} player 1 average score with {args.games} gameplays"
+    P2_title = f"{args.env_name} {name_list[0]} vs. {name_list[1]} player 2 average score with {args.games} gameplays"
+    xlabel = f"Player 2"
+    ylabel = f"Player 1"
+    P1_savename = f'./plot_tournament/{args.env_name}_{name_list[0]}vs{name_list[1]}_P1_g{args.games}.png'
+    P2_savename = f'./plot_tournament/{args.env_name}_{name_list[0]}vs{name_list[1]}_P2_g{args.games}.png'
 
     # generate heat plot
-    sns.set(rc={'figure.figsize':(15,12)})
+    sns.set(rc={'figure.figsize':(15,13)})
     ax = sns.heatmap(df_P1, annot=True, fmt=".2f", vmin=-1, vmax=1, cmap=args.cmap)
     ax.set_title(P1_title.title(),fontsize=25)
     ax.set_xlabel(xlabel, fontsize=20)
@@ -248,6 +226,49 @@ def heatmap_plot(total_rewards_normalized, checkpoint, args, ranks=None, opt='de
     fig.savefig(P2_savename)
     fig.clf()
 
+def heatmap_plot_total(world_mean_total_rewards, policy_dir, args):
+    # convert to short name
+    policy_name = []
+    for f in policy_dir:
+        name_vec = f.split('_')
+        policy_name.append(f'{name_vec[0]}_{name_vec[-1]}')
+    # convert to dataframe for plotting
+    heat_data_P1 = world_mean_total_rewards[:,:,0]
+    heat_data_P2 = world_mean_total_rewards[:,:,1]
+    P1_ticks = [str(x) for x in policy_name]
+    P2_ticks = [str(x) for x in policy_name]
+    df_P1 = pd.DataFrame(data=heat_data_P1, index=P1_ticks, columns=P2_ticks)
+    df_P2 = pd.DataFrame(data=heat_data_P2, index=P1_ticks, columns=P2_ticks)
+
+    # set title & labels
+    P1_title = f"{args.env_name} player 1 average score with {args.games} gameplays"
+    P2_title = f"{args.env_name} player 2 average score with {args.games} gameplays"
+    xlabel = f"Player 2"
+    ylabel = f"Player 1"
+    P1_savename = f'./plot_tournament/{args.env_name}_P1_g{args.games}.png'
+    P2_savename = f'./plot_tournament/{args.env_name}_P2_g{args.games}.png'
+
+    # generate heat plot
+    sns.set(rc={'figure.figsize':(15,13)})
+    ax = sns.heatmap(df_P1, annot=True, fmt=".2f", vmin=-1, vmax=1, cmap=args.cmap)
+    ax.set_title(P1_title.title(),fontsize=25)
+    ax.set_xlabel(xlabel, fontsize=20)
+    ax.set_ylabel(ylabel, fontsize=20)
+    ax.xaxis.tick_top()
+    plt.xticks(rotation=45)
+    fig = ax.get_figure()
+    fig.savefig(P1_savename) 
+    fig.clf()
+
+    ax = sns.heatmap(df_P2, annot=True, fmt=".2f", vmin=-1, vmax=1, cmap=args.cmap)
+    ax.set_title(P2_title.title(),fontsize=25)
+    ax.set_xlabel(xlabel, fontsize=20)
+    ax.set_ylabel(ylabel, fontsize=20)
+    ax.xaxis.tick_top()
+    plt.xticks(rotation=45)
+    fig = ax.get_figure()
+    fig.savefig(P2_savename)
+    fig.clf()
 
 def cli() -> None:
   """Handles argument extraction from CLI and passing to main().

@@ -28,6 +28,7 @@ from utils.selfplay import selfplay_wrapper
 import config
 
 def main(args):
+  start_time = MPI.Wtime()
 
   rank = MPI.COMM_WORLD.Get_rank()
 
@@ -121,6 +122,10 @@ def main(args):
 
   model.learn(total_timesteps=int(2e7), callback=[eval_callback], reset_num_timesteps = False, tb_log_name="tb")
 
+  # calculate processing time
+  end_time = MPI.Wtime()
+  logger.info(f"\nProcessing time: {end_time-start_time}")
+
   env.close()
   del env
 
@@ -137,7 +142,7 @@ def cli() -> None:
 
   parser.add_argument("--reset", "-r", action = 'store_true', default = False
                 , help="Start retraining the model from scratch")
-  parser.add_argument("--opponent_type", "-o", type = str, default = 'mostly_best'
+  parser.add_argument("--opponent_type", "-o", type = str, default = 'best'
               , help="best / mostly_best / random / base / rules - the type of opponent to train against")
   parser.add_argument("--debug", "-d", action = 'store_true', default = False
               , help="Debug logging")

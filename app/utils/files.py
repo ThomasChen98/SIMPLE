@@ -164,31 +164,30 @@ def load_model_custom(dir, env, name):
 def load_all_best_models(dir, policy_list, env):
     models = []
     modellist = []
-    for pl in policy_list:
-        load_path = os.path.join(dir, pl, 'models')
-        loadlist = [d for d in os.listdir(load_path)]
-        loadlist.sort()
-        for d in loadlist:
-            for f in os.listdir(os.path.join(load_path, d)):
-                if f.startswith("best_model"):
-                    filename = os.path.join(load_path, d, f)
-                    longnamelist = filename.split('/')
-                    longname = longnamelist[1]
-                    keywordlist = longname.split('_')
-                    modelname = keywordlist[0]+'_'+keywordlist[2]+'_'+d
-                    logger.info(f'Load {filename} as {modelname}')
-                    # load model
-                    cont = True
-                    while cont:
-                        try:
-                            ppo_model = PPO1.load(filename, env=env)
-                            cont = False
-                        except Exception as e:
-                            time.sleep(5)
-                            print(e)
-                    # append model
-                    models.append(ppo_model)
-                    modellist.append(modelname)
+    load_path = os.path.join(dir, policy_list, 'models')
+    loadlist = [d for d in os.listdir(load_path)]
+    loadlist.sort()
+    for d in loadlist:
+        for f in os.listdir(os.path.join(load_path, d)):
+            if f.startswith("best_model"):
+                filename = os.path.join(load_path, d, f)
+                longnamelist = filename.split('/')
+                longname = longnamelist[1]
+                keywordlist = longname.split('_')
+                modelname = keywordlist[0]+'_'+d
+                logger.info(f'Load {filename} as {modelname}')
+                # load model
+                cont = True
+                while cont:
+                    try:
+                        ppo_model = PPO1.load(filename, env=env)
+                        cont = False
+                    except Exception as e:
+                        time.sleep(5)
+                        print(e)
+                # append model
+                models.append(ppo_model)
+                modellist.append(modelname)
     return models, modellist
 
 def get_best_model_name(env_name):
@@ -214,6 +213,23 @@ def get_best_model_name_with_rank(env_name, opp_rank):
     else:
         modellist.sort()
         filename = modellist[-1]
+        
+    return filename
+
+def get_random_model_name_with_rank(env_name, opp_rank):
+    modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'{opp_rank+1}')) if f.startswith("_model")]
+    modellist_with_base = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'{opp_rank+1}'))]
+    
+    if len(modellist)==0: # no saved model yet
+        if len(modellist_with_base) != 0:
+            filename = f'base_{opp_rank+1}.zip'
+        else:
+            filename = None
+    elif len(modellist)==1: # only one saved model, use base model
+        filename = f'base_{opp_rank+1}.zip'
+    else:
+        modellist.sort()
+        filename = random.choice(modellist[:-1])
         
     return filename
 
