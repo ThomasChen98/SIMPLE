@@ -287,7 +287,7 @@ def cli() -> None:
                 , help="Make AI agents choose the best move (rather than sampling)")
   parser.add_argument("--cont", "-c",  action = 'store_true', default = False
                 , help="Pause after each turn to wait for user to continue")
-  parser.add_argument("--cmap", "-cm", type = str, default = "flare"
+  parser.add_argument("--cmap", "-cm", type = str, default = "vlag"
                 , help="Colormap")
   parser.add_argument("--debug", "-d",  action = 'store_true', default = False
                 , help="Show logs to debug level")
