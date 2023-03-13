@@ -33,6 +33,17 @@ import config
 
 
 def main(args):
+    # if load previous data, directly plot the heatmap
+    if args.load != None and not os.path.exists(os.path.join(config.HEATMAPDIR, args.load)):
+        raise Exception(f'{args.load} does not exist!')
+    elif args.load != None:
+        logger.info(f'\nLoading {args.load} data and plot heatmap...')
+        loaded = np.load(os.path.join(config.HEATMAPDIR, args.load))
+        total_rewards_normalized = loaded['total_rewards_normalized']
+        checkpoint = loaded['checkpoint']
+        heatmap_plot(total_rewards_normalized, checkpoint, args)
+        return
+    
     start_time = MPI.Wtime()
     # check mpi rank
     rank = MPI.COMM_WORLD.Get_rank()
@@ -47,21 +58,11 @@ def main(args):
     else:
         logger.set_level(config.INFO)
     
-    # if load previous data, directly plot the heatmap
-    if args.load != None and not os.path.exists(os.path.join(config.HEATMAPDIR, args.load)):
-        raise Exception(f'{args.load} does not exist!')
-    elif args.load != None:
-        logger.info(f'\nLoading {args.load} data and plot heatmap...')
-        loaded = np.load(os.path.join(config.HEATMAPDIR, args.load))
-        total_rewards_normalized = loaded['total_rewards_normalized']
-        checkpoint = loaded['checkpoint']
-        heatmap_plot(total_rewards_normalized, checkpoint, args)
-        return
-    
     # make environment with seed
     env = get_environment(args.env_name)(verbose = args.verbose, manual = args.manual)
-    env.seed(args.seed)
-    set_global_seeds(args.seed)
+    workerseed = args.seed + 10000 * rank
+    env.seed(workerseed)
+    set_global_seeds(workerseed)
 
     # load the policies
     checkpoint = np.arange(args.arange[0],args.arange[1],args.arange[2])

@@ -3,8 +3,8 @@
 ### Date: Feb 24, 2023
 
 ### Sample usage
-# sudo docker-compose exec app mpirun -np 25 python3 influenceLevelIndex.py -e tictactoe -g 100 -a 1 25 2 -p 5 -ld data/SP_tictactoe_best_10M_s5/models
-# sudo docker-compose exec app python3 influenceLevelIndex.py -e connect4 -g 100 -a 1 100 5 -l connect4_1.100.5_g100.npz
+# sudo docker-compose exec app mpirun -np 25 python3 influenceLevelIndex.py -e tictactoe -g 100 -a 1 26 1 -p 5 -ld data/SP_tictactoe_10M_s5/models
+# sudo docker-compose exec app python3 influenceLevelIndex.py -e tictactoe -g 100 -a 1 26 1 -l SP_tictactoe_10M_s5/tictactoe_avg_1.26.1_g100.npz
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
@@ -34,6 +34,20 @@ from utils.agents import Agent
 import config
 
 def main(args):
+    # if load previous data, directly plot the ridgeline
+    if args.load != None and not os.path.exists(os.path.join(config.RIDGELINEDIR, args.load)):
+        raise Exception(f'{args.load} does not exist!')
+    elif args.load != None:
+        logger.info(f'\nLoading {args.load} data and plot ridgeline...')
+        loaded = np.load(os.path.join(config.RIDGELINEDIR, args.load))
+        reward_prob_dist = loaded['reward_prob_dist']
+        kl_divergence = loaded['kl_divergence']
+        influence_level_index = loaded['influence_level_index']
+        checkpoint = loaded['checkpoint']
+        total_rewards = loaded['total_rewards']
+        ridgeline_plot(reward_prob_dist, kl_divergence, influence_level_index, total_rewards, checkpoint, args, opt='avg')
+        return
+    
     start_time = MPI.Wtime()
     # check mpi rank
     rank = MPI.COMM_WORLD.Get_rank()
@@ -48,24 +62,11 @@ def main(args):
     else:
         logger.set_level(config.INFO)
     
-    # if load previous data, directly plot the ridgeline
-    if args.load != None and not os.path.exists(os.path.join(config.RIDGELINEDIR, args.load)):
-        raise Exception(f'{args.load} does not exist!')
-    elif args.load != None:
-        logger.info(f'\nLoading {args.load} data and plot ridgeline...')
-        loaded = np.load(os.path.join(config.RIDGELINEDIR, args.load))
-        reward_prob_dist = loaded['reward_prob_dist']
-        kl_divergence = loaded['kl_divergence']
-        influence_level_index = loaded['influence_level_index']
-        checkpoint = loaded['checkpoint']
-        total_rewards = loaded['total_rewards']
-        ridgeline_plot(reward_prob_dist, kl_divergence, influence_level_index, total_rewards, checkpoint, args)
-        return
-    
     # make environment with seed
     env = get_environment(args.env_name)(verbose = args.verbose, manual = args.manual)
-    env.seed(args.seed)
-    set_global_seeds(args.seed)
+    workerseed = args.seed + 10000 * rank
+    env.seed(workerseed)
+    set_global_seeds(workerseed)
 
     # load the policies
     checkpoint = np.arange(args.arange[0],args.arange[1],args.arange[2])
@@ -190,7 +191,7 @@ def main(args):
     logger.info(f'\nInfluence Level Index of {args.env_name} approximated by given {policy_num} policies: {influence_level_index}')
 
     # save data
-    save_name = f'./ridgeline/{args.env_name}_{ego_rank+1}vs{opp_rank+1}_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}'
+    save_name = f'./plot_index/{args.env_name}_{ego_rank+1}vs{opp_rank+1}_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}'
     np.savez_compressed(save_name, reward_prob_dist=reward_prob_dist, kl_divergence=kl_divergence,\
                         influence_level_index=influence_level_index, total_rewards=total_rewards,\
                         checkpoint=checkpoint, ranks=[ego_rank, opp_rank])
@@ -238,7 +239,7 @@ def main(args):
         logger.info(f'\nAverage Influence Level Index of {args.env_name} approximated by given {policy_num} policies across {args.population}: {avg_influence_level_index}')
 
         # save data
-        avg_name = f'./ridgeline/{args.env_name}_avg_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}'
+        avg_name = f'./plot_index/{args.env_name}_avg_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}'
         np.savez_compressed(avg_name, reward_prob_dist=avg_reward_prob_dist, kl_divergence=avg_kl_divergence,\
                         influence_level_index=avg_influence_level_index, total_rewards=avg_total_rewards,\
                         checkpoint=checkpoint)
@@ -279,10 +280,10 @@ def ridgeline_plot(reward_prob_dist, kl_divergence, influence_level_index, total
     savename = 'default_savename.png'
     if opt == 'default':
         plot_title = f"{args.env_name} seed {ranks[0]+1} vs. seed {ranks[1]+1} player 1 reward distribution with {args.games} gameplays\n influence_level_index={influence_level_index:.5f}"
-        savename = f'./ridgeline/P1_{args.env_name}_{ranks[0]+1}vs{ranks[1]+1}_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
+        savename = f'./plot_index/P1_{args.env_name}_{ranks[0]+1}vs{ranks[1]+1}_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
     elif opt == 'avg':
         plot_title = f"{args.env_name} player 1 average reward distribution with {args.games} gameplays across {args.population} seeds\n influence_level_index={influence_level_index:.5f}"
-        savename = f'./ridgeline/P1_{args.env_name}_avg_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
+        savename = f'./plot_index/P1_{args.env_name}_avg_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
 
     # plot
     sns.set_theme(style="white", rc={"axes.facecolor": (0, 0, 0, 0)})

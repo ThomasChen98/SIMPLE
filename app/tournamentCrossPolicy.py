@@ -3,8 +3,8 @@
 ### Date: Mar 7, 2023
 
 ### Sample usage
-# sudo docker-compose exec app python3 tournamentCrossPolicy.py -e tictactoe -g 100 -ld data
-# sudo docker-compose exec app python3 tournamentCrossPolicy.py -e tictactoe -g 100 -l tictactoe_g5.npz
+# sudo docker-compose exec app mpirun -np 36 python3 tournamentCrossPolicy.py -e tictactoe -r -g 100 -ld data
+# sudo docker-compose exec app python3 tournamentCrossPolicy.py -e tictactoe -g 100 -l tictactoe_g100.npz
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
@@ -33,18 +33,6 @@ import config
 
 
 def main(args):
-    start_time = MPI.Wtime()
-
-    rank = MPI.COMM_WORLD.Get_rank()
-
-    # setup logger
-    logger.configure(config.TOURNAMENTLOGDIR)
-
-    if args.debug:
-        logger.set_level(config.DEBUG)
-    else:
-        logger.set_level(config.INFO)
-    
     # if load previous data, directly plot the heatmap
     if args.load != None and not os.path.exists(os.path.join(config.HEATMAPDIR, args.load)):
         raise Exception(f'{args.load} does not exist!')
@@ -56,13 +44,27 @@ def main(args):
         heatmap_plot_total(world_mean_total_rewards, policy_dir, args)
         return
     
+    start_time = MPI.Wtime()
+
+    rank = MPI.COMM_WORLD.Get_rank()
+
+    # setup logger
+    logger.configure(config.TOURNAMENTLOGDIR)
+
+    if args.debug:
+        logger.set_level(config.DEBUG)
+    else:
+        logger.set_level(config.INFO)
+
     # make environment with seed
     env = get_environment(args.env_name)(verbose = args.verbose, manual = args.manual)
-    env.seed(args.seed)
-    set_global_seeds(args.seed)
+    workerseed = args.seed + 10000 * rank
+    env.seed(workerseed)
+    set_global_seeds(workerseed)
 
     # load the policies
-    policy_dir = ['SP_tictactoe_10M_s5', 'PP_tictactoe_20M_s3', 'PP_tictactoe_20M_s5', 'PP_tictactoe_20M_s10']
+    policy_dir = ['SP_tictactoe_10M_s5', 'PP_tictactoe_20M_s3', 'PP_tictactoe_20M_s5',\
+                  'PP_tictactoe_20M_s10', 'FCP_tictactoe_20M_s5', 'FCP_tictactoe_20M_s10']
     
     # check mpi rank
     if MPI.COMM_WORLD.Get_size() != len(policy_dir)**2:
