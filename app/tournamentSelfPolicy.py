@@ -206,24 +206,24 @@ def heatmap_plot(total_rewards_normalized, checkpoint, args, ranks=None, opt='de
     P1_savename = 'default_savename_P1.png'
     P2_savename = 'default_savename_P2.png'
     if opt == 'default':
-        P1_title = f"{args.env_name} seed {ranks[0]+1} vs. seed {ranks[1]+1} player 1 average score with {args.games} gameplays"
-        P2_title = f"{args.env_name} seed {ranks[0]+1} vs. seed {ranks[1]+1} player 2 average score with {args.games} gameplays"
-        xlabel = f"Player 2 (Seed {ranks[1]+1})"
-        ylabel = f"Player 1 (Seed {ranks[0]+1})"
+        P1_title = f"{args.env_name} row player average score with {args.games} gameplays"
+        P2_title = f"{args.env_name} column player average score with {args.games} gameplays"
+        xlabel = f"Checkpoints of seed {ranks[1]+1} for column player"
+        ylabel = f"Checkpoints of seed {ranks[0]+1} for row player"
         P1_savename = f'./plot_tournament/{args.env_name}_{ranks[0]+1}vs{ranks[1]+1}_P1_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
         P2_savename = f'./plot_tournament/{args.env_name}_{ranks[0]+1}vs{ranks[1]+1}_P2_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
     elif opt == 'avg':
-        P1_title = f"{args.env_name} player 1 average score with {args.games} gameplays across {args.population} seeds"
-        P2_title = f"{args.env_name} player 2 average score with {args.games} gameplays across {args.population} seeds"
-        xlabel = f"Player 2"
-        ylabel = f"Player 1"
+        P1_title = f"{args.env_name} row player average score with {args.games} gameplays across {args.population} seeds"
+        P2_title = f"{args.env_name} column player average score with {args.games} gameplays across {args.population} seeds"
+        xlabel = f"Checkpoints for column player"
+        ylabel = f"Checkpoints for row player"
         P1_savename = f'./plot_tournament/{args.env_name}_avg_P1_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
         P2_savename = f'./plot_tournament/{args.env_name}_avg_P2_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
     elif opt == 'std':
-        P1_title = f"{args.env_name} player 1 average score std with {args.games} gameplays across {args.population} seeds"
-        P2_title = f"{args.env_name} player 2 average score std with {args.games} gameplays across {args.population} seeds"
-        xlabel = f"Player 2"
-        ylabel = f"Player 1"
+        P1_title = f"{args.env_name} row player average score std with {args.games} gameplays across {args.population} seeds"
+        P2_title = f"{args.env_name} column player average score std with {args.games} gameplays across {args.population} seeds"
+        xlabel = f"Checkpoints for column player"
+        ylabel = f"Checkpoints for row player"
         P1_savename = f'./plot_tournament/{args.env_name}_std_P1_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
         P2_savename = f'./plot_tournament/{args.env_name}_std_P2_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
 
@@ -233,7 +233,7 @@ def heatmap_plot(total_rewards_normalized, checkpoint, args, ranks=None, opt='de
     ax.set_title(P1_title.title(),fontsize=25)
     ax.set_xlabel(xlabel, fontsize=20)
     ax.set_ylabel(ylabel, fontsize=20)
-    ax.xaxis.tick_top()
+    # ax.xaxis.tick_top()
     plt.xticks(rotation=45)
     fig = ax.get_figure()
     fig.savefig(P1_savename) 
@@ -243,7 +243,7 @@ def heatmap_plot(total_rewards_normalized, checkpoint, args, ranks=None, opt='de
     ax.set_title(P2_title.title(),fontsize=25)
     ax.set_xlabel(xlabel, fontsize=20)
     ax.set_ylabel(ylabel, fontsize=20)
-    ax.xaxis.tick_top()
+    # ax.xaxis.tick_top()
     plt.xticks(rotation=45)
     fig = ax.get_figure()
     fig.savefig(P2_savename)

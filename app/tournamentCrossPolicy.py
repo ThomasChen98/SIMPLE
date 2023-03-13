@@ -199,10 +199,10 @@ def heatmap_plot(total_rewards_normalized, ego_model_list, opp_model_list, name_
     df_P2 = pd.DataFrame(data=heat_data_P2, index=P1_ticks, columns=P2_ticks)
 
     # set title & labels
-    P1_title = f"{args.env_name} {name_list[0]} vs. {name_list[1]} player 1 average score with {args.games} gameplays"
-    P2_title = f"{args.env_name} {name_list[0]} vs. {name_list[1]} player 2 average score with {args.games} gameplays"
-    xlabel = f"Player 2"
-    ylabel = f"Player 1"
+    P1_title = f"{args.env_name} {name_list[0]} vs. {name_list[1]} row player average score with {args.games} gameplays"
+    P2_title = f"{args.env_name} {name_list[0]} vs. {name_list[1]} column player average score with {args.games} gameplays"
+    xlabel = f"Random seeds for column player"
+    ylabel = f"Random seeds for row player"
     P1_savename = f'./plot_tournament/{args.env_name}_{name_list[0]}vs{name_list[1]}_P1_g{args.games}.png'
     P2_savename = f'./plot_tournament/{args.env_name}_{name_list[0]}vs{name_list[1]}_P2_g{args.games}.png'
 
@@ -212,7 +212,7 @@ def heatmap_plot(total_rewards_normalized, ego_model_list, opp_model_list, name_
     ax.set_title(P1_title.title(),fontsize=25)
     ax.set_xlabel(xlabel, fontsize=20)
     ax.set_ylabel(ylabel, fontsize=20)
-    ax.xaxis.tick_top()
+    # ax.xaxis.tick_top()
     plt.xticks(rotation=45)
     fig = ax.get_figure()
     fig.savefig(P1_savename) 
@@ -222,7 +222,7 @@ def heatmap_plot(total_rewards_normalized, ego_model_list, opp_model_list, name_
     ax.set_title(P2_title.title(),fontsize=25)
     ax.set_xlabel(xlabel, fontsize=20)
     ax.set_ylabel(ylabel, fontsize=20)
-    ax.xaxis.tick_top()
+    # ax.xaxis.tick_top()
     plt.xticks(rotation=45)
     fig = ax.get_figure()
     fig.savefig(P2_savename)
@@ -243,10 +243,10 @@ def heatmap_plot_total(world_mean_total_rewards, policy_dir, args):
     df_P2 = pd.DataFrame(data=heat_data_P2, index=P1_ticks, columns=P2_ticks)
 
     # set title & labels
-    P1_title = f"{args.env_name} player 1 average score with {args.games} gameplays"
-    P2_title = f"{args.env_name} player 2 average score with {args.games} gameplays"
-    xlabel = f"Player 2"
-    ylabel = f"Player 1"
+    P1_title = f"{args.env_name} row player average score with {args.games} gameplays"
+    P2_title = f"{args.env_name} column player average score with {args.games} gameplays"
+    xlabel = f"Training methods for column player"
+    ylabel = f"Training methods for row player"
     P1_savename = f'./plot_tournament/{args.env_name}_P1_g{args.games}.png'
     P2_savename = f'./plot_tournament/{args.env_name}_P2_g{args.games}.png'
 
@@ -256,7 +256,7 @@ def heatmap_plot_total(world_mean_total_rewards, policy_dir, args):
     ax.set_title(P1_title.title(),fontsize=25)
     ax.set_xlabel(xlabel, fontsize=20)
     ax.set_ylabel(ylabel, fontsize=20)
-    ax.xaxis.tick_top()
+    # ax.xaxis.tick_top()
     plt.xticks(rotation=45)
     fig = ax.get_figure()
     fig.savefig(P1_savename) 
@@ -266,7 +266,7 @@ def heatmap_plot_total(world_mean_total_rewards, policy_dir, args):
     ax.set_title(P2_title.title(),fontsize=25)
     ax.set_xlabel(xlabel, fontsize=20)
     ax.set_ylabel(ylabel, fontsize=20)
-    ax.xaxis.tick_top()
+    # ax.xaxis.tick_top()
     plt.xticks(rotation=45)
     fig = ax.get_figure()
     fig.savefig(P2_savename)
@@ -287,7 +287,7 @@ def cli() -> None:
                 , help="Make AI agents choose the best move (rather than sampling)")
   parser.add_argument("--cont", "-c",  action = 'store_true', default = False
                 , help="Pause after each turn to wait for user to continue")
-  parser.add_argument("--cmap", "-cm", type = str, default = "Spectral"
+  parser.add_argument("--cmap", "-cm", type = str, default = "flare"
                 , help="Colormap")
   parser.add_argument("--debug", "-d",  action = 'store_true', default = False
                 , help="Show logs to debug level")
