@@ -64,7 +64,8 @@ def main(args):
 
     # load the policies
     policy_dir = ['SP_tictactoe_10M_s5', 'PP_tictactoe_20M_s3', 'PP_tictactoe_20M_s5',\
-                  'PP_tictactoe_20M_s10', 'FCP_tictactoe_20M_s5', 'FCP_tictactoe_20M_s10']
+                  'PP_tictactoe_20M_s10', 'FCP_tictactoe_20M_s3', 'FCP_tictactoe_20M_s5',\
+                  'FCP_tictactoe_20M_s10']
     
     # check mpi rank
     if MPI.COMM_WORLD.Get_size() != len(policy_dir)**2:

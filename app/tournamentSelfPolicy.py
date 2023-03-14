@@ -3,8 +3,8 @@
 ### Date: Feb 24, 2023
 
 ### Sample usage
-# sudo docker-compose exec app mpirun -np 25 python3 tournamentSelfPolicy.py -e tictactoe -g 100 -a 1 25 2 -p 5 -ld data/SP_tictactoe_10M_s5/models
-# sudo docker-compose exec app python3 tournamentSelfPolicy.py -e connect4 -g 100 -a 1 100 5 -l connect4_1.100.5_g100.npz
+# sudo docker-compose exec app mpirun -np 25 python3 tournamentSelfPolicy.py -e tictactoe -r -g 100 -a 1 25 2 -p 5 -ld data/SP_tictactoe_10M_s5/models
+# sudo docker-compose exec app python3 tournamentSelfPolicy.py -e tictactoe -g 100 -a 1 25 2 -l SP_tictactoe_10M_s5_1.25.2/tictactoe_avg_1.25.2_g100.npz
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
@@ -41,7 +41,7 @@ def main(args):
         loaded = np.load(os.path.join(config.HEATMAPDIR, args.load))
         total_rewards_normalized = loaded['total_rewards_normalized']
         checkpoint = loaded['checkpoint']
-        heatmap_plot(total_rewards_normalized, checkpoint, args)
+        heatmap_plot(total_rewards_normalized, checkpoint, args, opt='avg')
         return
     
     start_time = MPI.Wtime()
@@ -265,7 +265,7 @@ def cli() -> None:
                 , help="Make AI agents choose the best move (rather than sampling)")
   parser.add_argument("--cont", "-c",  action = 'store_true', default = False
                 , help="Pause after each turn to wait for user to continue")
-  parser.add_argument("--cmap", "-cm", type = str, default = "Spectral"
+  parser.add_argument("--cmap", "-cm", type = str, default = "vlag"
                 , help="Colormap")
   parser.add_argument("--debug", "-d",  action = 'store_true', default = False
                 , help="Show logs to debug level")
