@@ -2,7 +2,7 @@ import os
 import numpy as np
 import random
 
-from utils.files import load_model_with_rank, load_all_models_pp, get_best_model_name_with_rank
+from utils.files import load_model_with_rank, load_all_models, get_opponent_best_model_name
 from utils.agents import Agent
 
 from mpi4py import MPI
@@ -19,8 +19,8 @@ def populationplay_wrapper(env):
             self.rank = MPI.COMM_WORLD.Get_rank()
             self.population = MPI.COMM_WORLD.Get_size()
             self.opponent_type = opponent_type
-            self.opponent_models = load_all_models_pp(self)
-            self.best_model_name = get_best_model_name_with_rank(self.name, self.rank)
+            self.opponent_models = load_all_models(self)
+            self.best_model_name = get_opponent_best_model_name(self.name, self.rank)
             open(os.path.join(config.MODELDIR, self.name, f'{self.rank+1}','_update.flag'), 'w+').close()
 
         def setup_opponents(self):
@@ -31,7 +31,7 @@ def populationplay_wrapper(env):
                     opponent_rank = random.randint(0, self.population-1)
                     logger.info(f'\nRank {self.rank+1} new opponent rank {opponent_rank+1}')
                     # incremental load of new model
-                    best_model_name = get_best_model_name_with_rank(self.name, opponent_rank)
+                    best_model_name = get_opponent_best_model_name(self.name, opponent_rank)
                     logger.info(f'Rank {self.rank+1} new opponent model: {best_model_name}, previous opponent model = {self.best_model_name}')
                     if self.best_model_name != best_model_name:
                         self.opponent_models.append(load_model_with_rank(self, best_model_name, opponent_rank))

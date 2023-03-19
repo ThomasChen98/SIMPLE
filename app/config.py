@@ -12,5 +12,7 @@ MODELDIR = "zoo/pretrained"
 
 HEATMAPDIR = "plot_tournament"
 RIDGELINEDIR = "plot_index"
+ELODIR = "plot_elo"
 TOURNAMENTLOGDIR = "logs_tournament"
 ILILOGDIR = "logs_index"
+ELOLOGDIR = "logs_elo"

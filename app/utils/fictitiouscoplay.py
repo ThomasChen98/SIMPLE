@@ -2,7 +2,7 @@ import os
 import numpy as np
 import random
 
-from utils.files import load_model_with_rank, load_all_models_pp, get_best_model_name_with_rank, get_random_model_name_with_rank
+from utils.files import load_model_with_rank, load_all_models, get_opponent_best_model_name, get_random_model_name_with_rank
 from utils.agents import Agent
 
 from mpi4py import MPI
@@ -19,8 +19,8 @@ def fictitiouscoplay_wrapper(env):
             self.rank = MPI.COMM_WORLD.Get_rank()
             self.population = MPI.COMM_WORLD.Get_size()
             self.opponent_type = opponent_type
-            self.opponent_models = load_all_models_pp(self)
-            self.opponent_name = get_best_model_name_with_rank(self.name, self.rank)
+            self.opponent_models = load_all_models(self)
+            self.opponent_name = get_opponent_best_model_name(self.name, self.rank)
             open(os.path.join(config.MODELDIR, self.name, f'{self.rank+1}','_update.flag'), 'w+').close()
 
         def setup_opponents(self):
@@ -32,7 +32,7 @@ def fictitiouscoplay_wrapper(env):
                     logger.info(f'\nRank {self.rank+1} new opponent rank {opponent_rank+1}')
                     j = random.uniform(0,1)
                     if j < 0.8: # use best model
-                        opponent_name = get_best_model_name_with_rank(self.name, opponent_rank)
+                        opponent_name = get_opponent_best_model_name(self.name, opponent_rank)
                         logger.info(f'Rank {self.rank+1} new best opponent model: {opponent_name}, previous opponent model = {self.opponent_name}')
                     else: # use random model
                         opponent_name = get_random_model_name_with_rank(self.name, opponent_rank)

@@ -1,0 +1,8 @@
+Logging to logs_elo
+
+##### Rank 5 #####
+Loading tictactoe 5 models...
+
+Playing 100 games for each of 0 policies...
+
+Rank 5 elo sent

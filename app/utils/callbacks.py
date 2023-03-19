@@ -45,15 +45,18 @@ class SelfPlayCallback(EvalCallback):
         rules_based_rewards = MPI.COMM_WORLD.allgather(self.callback.best_mean_reward)
         av_rules_based_reward = np.mean(rules_based_rewards)
 
-      if self.rank == 0:
-        logger.info("Eval num_timesteps={}, episode_reward={:.2f} +/- {:.2f}".format(self.num_timesteps, av_reward, std_reward))
-        logger.info("Total episodes ran={}".format(total_episodes))
+      logger.info("Rank {} Eval num_timesteps={}, episode_reward={:.2f}".format(self.rank+1, self.num_timesteps, self.best_mean_reward))
+      logger.info("Rank {} Total episodes ran={}".format(self.rank+1, total_episodes))
 
       # compare the latest reward against the threshold - seperated version
       if result and self.best_mean_reward > self.threshold:
+        # set update flag file
+        open(os.path.join(self.model_dir, '_update.flag'), 'w+').close()
+
         self.generation += 1
-        logger.info(f"New best model in rank {self.rank}: {self.generation}\n")
+        logger.info(f"New best model in rank {self.rank+1}: {self.generation}\n")
         generation_str = str(self.generation).zfill(5)
+        rank_str = str(self.rank+1).zfill(2)
         best_mean_reward_str = str(round(self.best_mean_reward,3))
         
         if self.callback is not None:
@@ -62,9 +65,9 @@ class SelfPlayCallback(EvalCallback):
           best_mean_rules_based_reward_str = str(0)
         
         source_file = os.path.join(config.TMPMODELDIR, f'{self.rank+1}', f"best_model.zip") # this is constantly being written to - not actually the best model
-        target_file = os.path.join(self.model_dir,  f"_model_{generation_str}_{best_mean_rules_based_reward_str}_{best_mean_reward_str}_{str(self.base_timesteps + self.num_timesteps)}_.zip")
+        target_file = os.path.join(self.model_dir,  f"_model_{rank_str}_{generation_str}_{best_mean_rules_based_reward_str}_{best_mean_reward_str}_{str(self.base_timesteps + self.num_timesteps)}_.zip")
         copyfile(source_file, target_file)
-        target_file = os.path.join(self.model_dir,  f"best_model.zip")
+        target_file = os.path.join(self.model_dir,  f"best_model_{self.rank+1}.zip")
         copyfile(source_file, target_file)
 
         # if playing against a rules based agent, update the global best reward to the improved metric

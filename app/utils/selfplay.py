@@ -2,8 +2,10 @@ import os
 import numpy as np
 import random
 
-from utils.files import load_model, load_all_models, get_best_model_name
+from utils.files import load_model_with_rank, load_all_models, get_best_model_name
 from utils.agents import Agent
+
+from mpi4py import MPI
 
 import config
 
@@ -14,6 +16,7 @@ def selfplay_wrapper(env):
         # wrapper over the normal single player env, but loads the best self play model
         def __init__(self, opponent_type, verbose):
             super(SelfPlayEnv, self).__init__(verbose)
+            self.rank = MPI.COMM_WORLD.Get_rank()
             self.opponent_type = opponent_type
             self.opponent_models = load_all_models(self)
             self.best_model_name = get_best_model_name(self.name)
@@ -22,11 +25,13 @@ def selfplay_wrapper(env):
             if self.opponent_type == 'rules':
                 self.opponent_agent = Agent('rules')
             else:
-                # incremental load of new model
-                best_model_name = get_best_model_name(self.name)
-                if self.best_model_name != best_model_name:
-                    self.opponent_models.append(load_model(self, best_model_name ))
-                    self.best_model_name = best_model_name
+                if self.check_update():
+                    # incremental load of new model
+                    best_model_name = get_best_model_name(self.name)
+                    logger.info(f'Rank {self.rank+1} new opponent model: {best_model_name}, previous opponent model = {self.best_model_name}')
+                    if self.best_model_name != best_model_name:
+                        self.opponent_models.append(load_model_with_rank(self, best_model_name, self.rank))
+                        self.best_model_name = best_model_name
 
                 if self.opponent_type == 'random':
                     start = 0
@@ -110,5 +115,14 @@ def selfplay_wrapper(env):
                 self.render()
 
             return observation, agent_reward, done, {} 
+
+        def check_update(self):
+            updatefile = [f for f in os.listdir(os.path.join(config.MODELDIR, self.name, f'{self.rank+1}')) if f.startswith("_update")]
+            
+            if len(updatefile) != 0:
+                os.remove(os.path.join(config.MODELDIR, self.name, f'{self.rank+1}', updatefile[0]))
+                return True
+            
+            return False
 
     return SelfPlayEnv

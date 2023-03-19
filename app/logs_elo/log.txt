@@ -1,0 +1,12 @@
+Logging to logs_elo
+
+##### Rank 1 #####
+Loading tictactoe 1 models...
+
+Playing 100 games for each of 0 policies...
+2th elo received
+3th elo received
+4th elo received
+5th elo received
+
+Processing time: 0.8581653529545292

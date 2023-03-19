@@ -118,14 +118,6 @@ def load_model_with_rank(env, name, opp_rank):
 def load_all_models(env):
     modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env.name, f'{MPI.COMM_WORLD.Get_rank()+1}')) if f.startswith("_model")]
     modellist.sort()
-    models = [load_model(env, 'base.zip')]
-    for model_name in modellist:
-        models.append(load_model(env, name = model_name))
-    return models
-
-def load_all_models_pp(env):
-    modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env.name, f'{MPI.COMM_WORLD.Get_rank()+1}')) if f.startswith("_model")]
-    modellist.sort()
     models = [load_model_with_rank(env, 'base.zip', MPI.COMM_WORLD.Get_rank())]
     for model_name in modellist:
         models.append(load_model_with_rank(env, model_name, MPI.COMM_WORLD.Get_rank()))
@@ -135,7 +127,7 @@ def load_selected_models(dir, env, rank, checkpoints):
     modellist = []
     for cp in checkpoints:
         for f in os.listdir(os.path.join(dir, f'{rank+1}')):
-            if f.startswith("_model_"+str(cp).zfill(5)):
+            if f.startswith("_model_"+str(rank+1).zfill(2)+"_"+str(cp).zfill(5)):
                 modellist.append(f)
     modellist.sort()
     models = []
@@ -201,7 +193,7 @@ def get_best_model_name(env_name):
         
     return filename
 
-def get_best_model_name_with_rank(env_name, opp_rank):
+def get_opponent_best_model_name(env_name, opp_rank):
     modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'{opp_rank+1}')) if f.startswith("_model")]
     
     if len(modellist)==0:

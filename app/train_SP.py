@@ -1,4 +1,4 @@
-# docker-compose exec app mpirun -np 5 python3 train_SP.py -r -e tictactoe
+# sudo docker-compose exec app mpirun -np 10 python3 train_SP.py -r -e tictactoe -tt 5e7
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
@@ -44,10 +44,7 @@ def main(args):
   if args.reset:
     reset_models(model_dir)
   
-  if rank == 0:
-    logger.configure(config.LOGDIR)
-  else:
-    logger.configure(format_strs=[])
+  logger.configure(config.LOGDIR)
 
   if args.debug:
     logger.set_level(config.DEBUG)
@@ -84,7 +81,7 @@ def main(args):
 
   if args.reset or not os.path.exists(os.path.join(model_dir, 'best_model.zip')):
     logger.info('\nLoading the base PPO agent to train...')
-    model = PPO1.load(os.path.join(model_dir, 'base.zip'), env, **params)
+    model = PPO1.load(os.path.join(model_dir, f'base_{rank+1}.zip'), env, **params)
   else:
     logger.info('\nLoading the best_model.zip PPO agent to continue training...')
     model = PPO1.load(os.path.join(model_dir, 'best_model.zip'), env, **params)
@@ -120,7 +117,7 @@ def main(args):
 
   logger.info('\nSetup complete - commencing learning...\n')
 
-  model.learn(total_timesteps=int(2e7), callback=[eval_callback], reset_num_timesteps = False, tb_log_name="tb")
+  model.learn(total_timesteps=int(float(args.total_timesteps)), callback=[eval_callback], reset_num_timesteps = False, tb_log_name="tb")
 
   # calculate processing time
   end_time = MPI.Wtime()
@@ -178,6 +175,8 @@ def cli() -> None:
             , help="The step size for the PPO optimiser")
   parser.add_argument("--optim_batchsize", "-ob",  type = int, default = 1024
             , help="The minibatch size in the PPO optimiser")
+  parser.add_argument("--total_timesteps", "-tt",  type = str, default = '2e7'
+            , help="Total env steps for training in scientific notation, e.g., 2e7")
             
   parser.add_argument("--lam", "-l",  type = float, default = 0.95
             , help="The value of lambda in PPO")
