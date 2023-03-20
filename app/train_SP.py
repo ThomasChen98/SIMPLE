@@ -10,13 +10,11 @@ tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 import argparse
 import time
-from shutil import copyfile
 from mpi4py import MPI
 
 from stable_baselines.ppo1 import PPO1
 from stable_baselines.common.callbacks import EvalCallback
 
-from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.common import set_global_seeds
 from stable_baselines import logger
 
@@ -66,15 +64,15 @@ def main(args):
   params = {'gamma':args.gamma
     , 'timesteps_per_actorbatch':args.timesteps_per_actorbatch
     , 'clip_param':args.clip_param
-      , 'entcoeff':args.entcoeff
-      , 'optim_epochs':args.optim_epochs
-      , 'optim_stepsize':args.optim_stepsize
-      , 'optim_batchsize':args.optim_batchsize
-      , 'lam':args.lam
-      , 'adam_epsilon':args.adam_epsilon
-      , 'schedule':'linear'
-      , 'verbose':1
-      , 'tensorboard_log':config.LOGDIR
+    , 'entcoeff':args.entcoeff
+    , 'optim_epochs':args.optim_epochs
+    , 'optim_stepsize':args.optim_stepsize
+    , 'optim_batchsize':args.optim_batchsize
+    , 'lam':args.lam
+    , 'adam_epsilon':args.adam_epsilon
+    , 'schedule':'linear'
+    , 'verbose':1
+    , 'tensorboard_log':config.LOGDIR
   }
 
   time.sleep(5) # allow time for the base model to be saved out when the environment is created

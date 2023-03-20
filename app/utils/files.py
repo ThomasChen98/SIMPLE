@@ -43,7 +43,7 @@ def write_results(players, game, games, episode_length):
 
 def load_model(env, name):
 
-    filename = os.path.join(config.MODELDIR, env.name, f'{MPI.COMM_WORLD.Get_rank()+1}', name)
+    filename = os.path.join(config.MODELDIR, env.name, f'{MPI.COMM_WORLD.Get_rank()}', name)
     if os.path.exists(filename):
         logger.info(f'Loading {name}')
         cont = True
@@ -63,7 +63,7 @@ def load_model(env, name):
                 rank = MPI.COMM_WORLD.Get_rank()
 
                 ppo_model = PPO1(get_network_arch(env.name), env=env)
-                ppo_model.save(os.path.join(config.MODELDIR, env.name, f'{rank+1}', 'base.zip'))
+                ppo_model.save(os.path.join(config.MODELDIR, env.name, f'{rank}', 'base.zip'))
                 logger.info(f'Saving base.zip PPO model...')
 
                 cont = False
@@ -78,13 +78,13 @@ def load_model(env, name):
     
     return ppo_model
 
-def load_model_with_rank(env, name, opp_rank):
+def load_model_with_rank(env, name, threadID, opp_rank):
 
     my_rank = MPI.COMM_WORLD.Get_rank()
 
-    filename = os.path.join(config.MODELDIR, env.name, f'{opp_rank+1}', name)
+    filename = os.path.join(config.MODELDIR, env.name, f'thread_{threadID}', f'rank_{opp_rank}', name)
     if os.path.exists(filename):
-        logger.info(f'Rank {my_rank+1} loading {name}')
+        logger.info(f'+++Thread {threadID} Rank {my_rank}+++ Rank {my_rank} loading {name}')
         cont = True
         while cont:
             try:
@@ -98,10 +98,9 @@ def load_model_with_rank(env, name, opp_rank):
         cont = True
         while cont:
             try:
-
                 ppo_model = PPO1(get_network_arch(env.name), env=env)
-                ppo_model.save(os.path.join(config.MODELDIR, env.name, f'{opp_rank+1}', f'base_{opp_rank+1}.zip'))
-                logger.info(f'Rank {my_rank+1} saving base_{opp_rank+1}.zip PPO model...')
+                ppo_model.save(os.path.join(config.MODELDIR, env.name, f'thread_{threadID}', f'rank_{opp_rank}', f'base_{threadID}_{opp_rank}.zip'))
+                logger.info(f'+++Thread {threadID} Rank {my_rank}+++ Rank {my_rank} saving base_{threadID}_{opp_rank}.zip PPO model...')
 
                 cont = False
             except IOError as e:
@@ -119,9 +118,9 @@ def load_model_with_rank_in_pool(env, name, opp_rank):
 
     my_rank = MPI.COMM_WORLD.Get_rank()
 
-    filename = os.path.join(config.POOLDIR, env.name, f'{opp_rank+1}', name)
+    filename = os.path.join(config.POOLDIR, env.name, f'{opp_rank}', name)
     if os.path.exists(filename):
-        logger.info(f'Rank {my_rank+1} loading {name}')
+        logger.info(f'Rank {my_rank} loading {name}')
         cont = True
         while cont:
             try:
@@ -136,24 +135,24 @@ def load_model_with_rank_in_pool(env, name, opp_rank):
     
     return ppo_model
 
-def load_all_models(env):
-    modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env.name, f'{MPI.COMM_WORLD.Get_rank()+1}')) if f.startswith("_model")]
+def load_all_models(env, threadID):
+    modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env.name, f'thread_{threadID}', f'rank_{MPI.COMM_WORLD.Get_rank()}')) if f.startswith("_model")]
     modellist.sort()
-    models = [load_model_with_rank(env, 'base.zip', MPI.COMM_WORLD.Get_rank())]
+    models = [load_model_with_rank(env, 'base.zip', threadID, MPI.COMM_WORLD.Get_rank())]
     for model_name in modellist:
-        models.append(load_model_with_rank(env, model_name, MPI.COMM_WORLD.Get_rank()))
+        models.append(load_model_with_rank(env, model_name, threadID, MPI.COMM_WORLD.Get_rank()))
     return models
 
 def load_selected_models(dir, env, rank, checkpoints):
     modellist = []
     for cp in checkpoints:
-        for f in os.listdir(os.path.join(dir, f'{rank+1}')):
-            if f.startswith("_model_"+str(rank+1).zfill(2)+"_"+str(cp).zfill(5)):
+        for f in os.listdir(os.path.join(dir, f'{rank}')):
+            if f.startswith("_model_"+str(rank).zfill(2)+"_"+str(cp).zfill(5)):
                 modellist.append(f)
     modellist.sort()
     models = []
     for model_name in modellist:
-        models.append(load_model_custom(os.path.join(dir, f'{rank+1}'), env=env, name = model_name))
+        models.append(load_model_custom(os.path.join(dir, f'{rank}'), env=env, name = model_name))
     return models, modellist
 
 def load_model_custom(dir, env, name):
@@ -203,8 +202,8 @@ def load_all_best_models(dir, policy_list, env):
                 modellist.append(modelname)
     return models, modellist
 
-def get_best_model_name(env_name):
-    modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'{MPI.COMM_WORLD.Get_rank()+1}')) if f.startswith("_model")]
+def get_best_model_name(threadID, env_name):
+    modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'thread_{threadID}', f'rank_{MPI.COMM_WORLD.Get_rank()}')) if f.startswith("_model")]
     
     if len(modellist)==0:
         filename = None
@@ -215,12 +214,12 @@ def get_best_model_name(env_name):
     return filename
 
 def get_opponent_best_model_name(env_name, opp_rank):
-    modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'{opp_rank+1}')) if f.startswith("_model")]
+    modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'{opp_rank}')) if f.startswith("_model")]
     
     if len(modellist)==0:
-        modellist_with_base = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'{opp_rank+1}'))]
+        modellist_with_base = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'{opp_rank}'))]
         if len(modellist_with_base) != 0:
-            filename = f'base_{opp_rank+1}.zip'
+            filename = f'base_{opp_rank}.zip'
         else:
             filename = None
     else:
@@ -230,16 +229,16 @@ def get_opponent_best_model_name(env_name, opp_rank):
     return filename
 
 def get_random_model_name_with_rank(env_name, opp_rank):
-    modellist = [f for f in os.listdir(os.path.join(config.POOLDIR, env_name, f'{opp_rank+1}')) if f.startswith("_model")]
-    modellist_with_base = [f for f in os.listdir(os.path.join(config.POOLDIR, env_name, f'{opp_rank+1}'))]
+    modellist = [f for f in os.listdir(os.path.join(config.POOLDIR, env_name, f'{opp_rank}')) if f.startswith("_model")]
+    modellist_with_base = [f for f in os.listdir(os.path.join(config.POOLDIR, env_name, f'{opp_rank}'))]
     
     if len(modellist)==0: # no saved model yet
         if len(modellist_with_base) != 0:
-            filename = f'base_{opp_rank+1}.zip'
+            filename = f'base_{opp_rank}.zip'
         else:
             filename = None
     elif len(modellist)==1: # only one saved model, use base model
-        filename = f'base_{opp_rank+1}.zip'
+        filename = f'base_{opp_rank}.zip'
     else:
         modellist.sort()
         filename = random.choice(modellist)
@@ -254,25 +253,24 @@ def get_model_stats(filename):
         best_reward = -np.inf
     else:
         stats = filename.split('_')
-        generation = int(stats[2])
-        best_rules_based = float(stats[3])
-        best_reward = float(stats[4])
-        timesteps = int(stats[5])
+        generation = int(stats[4])
+        best_rules_based = float(stats[5])
+        best_reward = float(stats[6])
+        timesteps = int(stats[7])
     return generation, timesteps, best_rules_based, best_reward
 
 
-def reset_logs(model_dir):
+def reset_logs(threadID):
     try:
         filelist = [ f for f in os.listdir(config.LOGDIR) if f not in ['.gitignore']]
         for f in filelist:
             if os.path.isfile(f):  
                 os.remove(os.path.join(config.LOGDIR, f))
-
-        for i in range(100):
-            if os.path.exists(os.path.join(config.LOGDIR, f'tb_{i}')):
-                rmtree(os.path.join(config.LOGDIR, f'tb_{i}'))
+            else:
+                rmtree(os.path.join(config.LOGDIR, f))
         
-        open(os.path.join(config.LOGDIR, 'log.txt'), 'a').close()
+        os.makedirs(os.path.join(config.LOGDIR, f'thread_{threadID}'))
+        open(os.path.join(config.LOGDIR, f'thread_{threadID}', 'log.txt'), 'a').close()
     
         
     except Exception as e :
@@ -281,7 +279,7 @@ def reset_logs(model_dir):
 
 def reset_models(model_dir):
     try:
-        filelist = [ f for f in os.listdir(model_dir) if f not in ['.gitignore']]
+        filelist = [f for f in os.listdir(model_dir) if f not in ['.gitignore']]
         for f in filelist:
             os.remove(os.path.join(model_dir , f))
     except Exception as e :
