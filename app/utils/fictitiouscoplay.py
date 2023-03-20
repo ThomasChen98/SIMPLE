@@ -2,7 +2,7 @@ import os
 import numpy as np
 import random
 
-from utils.files import load_model_with_rank, load_all_models, get_opponent_best_model_name, get_random_model_name_with_rank
+from utils.files import load_model_with_rank_in_pool, load_all_models, get_opponent_best_model_name, get_random_model_name_with_rank
 from utils.agents import Agent
 
 from mpi4py import MPI
@@ -30,16 +30,12 @@ def fictitiouscoplay_wrapper(env):
                 if self.check_update():
                     opponent_rank = random.randint(0, self.population-1)
                     logger.info(f'\nRank {self.rank+1} new opponent rank {opponent_rank+1}')
-                    j = random.uniform(0,1)
-                    if j < 0.8: # use best model
-                        opponent_name = get_opponent_best_model_name(self.name, opponent_rank)
-                        logger.info(f'Rank {self.rank+1} new best opponent model: {opponent_name}, previous opponent model = {self.opponent_name}')
-                    else: # use random model
-                        opponent_name = get_random_model_name_with_rank(self.name, opponent_rank)
-                        logger.info(f'Rank {self.rank+1} new random opponent model: {opponent_name}, previous opponent model = {self.opponent_name}')
+                    # use random model
+                    opponent_name = get_random_model_name_with_rank(self.name, opponent_rank)
+                    logger.info(f'Rank {self.rank+1} new random opponent model: {opponent_name}, previous opponent model = {self.opponent_name}')
                     
                     if self.opponent_name != opponent_name:
-                        self.opponent_models.append(load_model_with_rank(self, opponent_name, opponent_rank))
+                        self.opponent_models.append(load_model_with_rank_in_pool(self, opponent_name, opponent_rank))
                         self.opponent_name = opponent_name
 
                 if self.opponent_type == 'random':

@@ -115,6 +115,27 @@ def load_model_with_rank(env, name, opp_rank):
     
     return ppo_model
 
+def load_model_with_rank_in_pool(env, name, opp_rank):
+
+    my_rank = MPI.COMM_WORLD.Get_rank()
+
+    filename = os.path.join(config.POOLDIR, env.name, f'{opp_rank+1}', name)
+    if os.path.exists(filename):
+        logger.info(f'Rank {my_rank+1} loading {name}')
+        cont = True
+        while cont:
+            try:
+                ppo_model = PPO1.load(filename, env=env)
+                cont = False
+            except Exception as e:
+                time.sleep(5)
+                print(e)
+                
+    else:
+        raise Exception(f'\n{filename} not found')
+    
+    return ppo_model
+
 def load_all_models(env):
     modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env.name, f'{MPI.COMM_WORLD.Get_rank()+1}')) if f.startswith("_model")]
     modellist.sort()
@@ -209,8 +230,8 @@ def get_opponent_best_model_name(env_name, opp_rank):
     return filename
 
 def get_random_model_name_with_rank(env_name, opp_rank):
-    modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'{opp_rank+1}')) if f.startswith("_model")]
-    modellist_with_base = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'{opp_rank+1}'))]
+    modellist = [f for f in os.listdir(os.path.join(config.POOLDIR, env_name, f'{opp_rank+1}')) if f.startswith("_model")]
+    modellist_with_base = [f for f in os.listdir(os.path.join(config.POOLDIR, env_name, f'{opp_rank+1}'))]
     
     if len(modellist)==0: # no saved model yet
         if len(modellist_with_base) != 0:
@@ -221,7 +242,7 @@ def get_random_model_name_with_rank(env_name, opp_rank):
         filename = f'base_{opp_rank+1}.zip'
     else:
         modellist.sort()
-        filename = random.choice(modellist[:-1])
+        filename = random.choice(modellist)
         
     return filename
 

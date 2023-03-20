@@ -117,7 +117,7 @@ def main(args):
 
   logger.info('\nSetup complete - commencing learning...\n')
 
-  model.learn(total_timesteps=int(2e7), callback=[eval_callback], reset_num_timesteps = False, tb_log_name="tb")
+  model.learn(total_timesteps=int(float(args.total_timesteps)), callback=[eval_callback], reset_num_timesteps = False, tb_log_name="tb")
 
   # calculate processing time
   end_time = MPI.Wtime()
@@ -175,6 +175,8 @@ def cli() -> None:
             , help="The step size for the PPO optimiser")
   parser.add_argument("--optim_batchsize", "-ob",  type = int, default = 1024
             , help="The minibatch size in the PPO optimiser")
+  parser.add_argument("--total_timesteps", "-tt",  type = str, default = '2e7'
+            , help="Total env steps for training in scientific notation, e.g., 2e7")
             
   parser.add_argument("--lam", "-l",  type = float, default = 0.95
             , help="The value of lambda in PPO")
