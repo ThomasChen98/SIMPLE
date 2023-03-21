@@ -2,7 +2,7 @@ import os
 import numpy as np
 import random
 
-from utils.files import load_model_with_rank, load_all_models, get_best_model_name
+from utils.files import load_model_with_id, load_all_models, get_best_model_name
 from utils.agents import Agent
 
 from mpi4py import MPI
@@ -19,26 +19,26 @@ def selfplay_wrapper(env):
             self.threadID = threadID
             self.rank = MPI.COMM_WORLD.Get_rank()
             self.opponent_type = opponent_type
-            self.opponent_models = load_all_models(self, self.threadID)
-            self.best_model_name = get_best_model_name(self.threadID, self.name)
+            self.opponent_models = load_all_models(self, self.threadID)[-1]
+            self.best_model_name = get_best_model_name(self.name, self.threadID)
 
         def setup_opponents(self):
             if self.check_update():
                 # incremental load of new model
-                best_model_name = get_best_model_name(self.threadID, self.name)
-                logger.info(f'+++Thread {self.threadID} Rank {self.rank}+++ New opponent model: {best_model_name}, previous opponent model = {self.best_model_name}')
+                best_model_name = get_best_model_name(self.name, self.threadID)
+                logger.info(f'+++Thread {self.threadID}+++ New opponent model: {best_model_name}, previous opponent model = {self.best_model_name}')
                 if self.best_model_name != best_model_name:
-                    self.opponent_models.append(load_model_with_rank(self, best_model_name, self.threadID, self.rank))
+                    self.opponent_models = load_model_with_id(self, best_model_name, self.threadID)
                     self.best_model_name = best_model_name
 
-            self.opponent_agent = Agent('ppo_opponent', self.opponent_models[-1])
+            self.opponent_agent = Agent('ppo_opponent', self.opponent_models)
 
             self.agent_player_num = np.random.choice(self.n_players)
             self.agents = [self.opponent_agent] * self.n_players
             self.agents[self.agent_player_num] = None
             try:
                 #if self.players is defined on the base environment
-                logger.debug(f'+++Thread {self.threadID} Rank {self.rank}+++ Agent plays as Player {self.players[self.agent_player_num].id}')
+                logger.debug(f'+++Thread {self.threadID}+++ Agent plays as Player {self.players[self.agent_player_num].id}')
             except:
                 pass
 
@@ -65,8 +65,8 @@ def selfplay_wrapper(env):
                 self.render()
                 action = self.current_agent.choose_action(self, choose_best_action = False, mask_invalid_actions = False)
                 observation, reward, done, _ = super(SelfPlayEnv, self).step(action)
-                logger.debug(f'+++Thread {self.threadID} Rank {self.rank}+++ Rewards: {reward}')
-                logger.debug(f'+++Thread {self.threadID} Rank {self.rank}+++ Done: {done}')
+                logger.debug(f'+++Thread {self.threadID}+++ Rewards: {reward}')
+                logger.debug(f'+++Thread {self.threadID}+++ Done: {done}')
                 if done:
                     break
 
@@ -76,9 +76,9 @@ def selfplay_wrapper(env):
         def step(self, action):
             self.render()
             observation, reward, done, _ = super(SelfPlayEnv, self).step(action)
-            logger.debug(f'+++Thread {self.threadID} Rank {self.rank}+++ Action played by agent: {action}')
-            logger.debug(f'+++Thread {self.threadID} Rank {self.rank}+++ Rewards: {reward}')
-            logger.debug(f'+++Thread {self.threadID} Rank {self.rank}+++ Done: {done}')
+            logger.debug(f'+++Thread {self.threadID}+++ Action played by agent: {action}')
+            logger.debug(f'+++Thread {self.threadID}+++ Rewards: {reward}')
+            logger.debug(f'+++Thread {self.threadID}+++ Done: {done}')
 
             if not done:
                 package = self.continue_game()
@@ -87,7 +87,7 @@ def selfplay_wrapper(env):
 
 
             agent_reward = reward[self.agent_player_num]
-            logger.debug(f'\n+++Thread {self.threadID} Rank {self.rank}+++ Reward To Agent: {agent_reward}')
+            logger.debug(f'\n+++Thread {self.threadID}+++ Reward To Agent: {agent_reward}')
 
             if done:
                 self.render()
@@ -95,10 +95,10 @@ def selfplay_wrapper(env):
             return observation, agent_reward, done, {} 
 
         def check_update(self):
-            updatefile = [f for f in os.listdir(os.path.join(config.MODELDIR, self.name, f'thread_{self.threadID}', f'rank_{self.rank}')) if f.startswith("_update")]
+            updatefile = [f for f in os.listdir(os.path.join(config.MODELDIR, self.name, f'thread_{self.threadID}')) if f.startswith(f'_update_rank_{self.rank}')]
             
             if len(updatefile) != 0:
-                os.remove(os.path.join(config.MODELDIR, self.name, f'thread_{self.threadID}', f'rank_{self.rank}', updatefile[0]))
+                os.remove(os.path.join(config.MODELDIR, self.name, f'thread_{self.threadID}', updatefile[0]))
                 return True
             
             return False

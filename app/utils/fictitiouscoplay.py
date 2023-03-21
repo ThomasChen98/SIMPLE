@@ -21,7 +21,7 @@ def fictitiouscoplay_wrapper(env):
             self.opponent_type = opponent_type
             self.opponent_models = load_all_models(self)
             self.opponent_name = get_opponent_best_model_name(self.name, self.rank)
-            open(os.path.join(config.MODELDIR, self.name, f'{self.rank+1}','_update.flag'), 'w+').close()
+            open(os.path.join(config.MODELDIR, self.name, f'{self.rank+1}','_update.flag'), 'a').close()
 
         def setup_opponents(self):
             if self.opponent_type == 'rules':

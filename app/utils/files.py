@@ -78,13 +78,10 @@ def load_model(env, name):
     
     return ppo_model
 
-def load_model_with_rank(env, name, threadID, opp_rank):
-
-    my_rank = MPI.COMM_WORLD.Get_rank()
-
-    filename = os.path.join(config.MODELDIR, env.name, f'thread_{threadID}', f'rank_{opp_rank}', name)
+def load_model_with_id(env, name, opp_id):
+    filename = os.path.join(config.MODELDIR, env.name, f'thread_{opp_id}', name)
     if os.path.exists(filename):
-        logger.info(f'+++Thread {threadID} Rank {my_rank}+++ Rank {my_rank} loading {name}')
+        logger.info(f'+++Thread {opp_id}+++ Loading {name}')
         cont = True
         while cont:
             try:
@@ -99,8 +96,9 @@ def load_model_with_rank(env, name, threadID, opp_rank):
         while cont:
             try:
                 ppo_model = PPO1(get_network_arch(env.name), env=env)
-                ppo_model.save(os.path.join(config.MODELDIR, env.name, f'thread_{threadID}', f'rank_{opp_rank}', f'base_{threadID}_{opp_rank}.zip'))
-                logger.info(f'+++Thread {threadID} Rank {my_rank}+++ Rank {my_rank} saving base_{threadID}_{opp_rank}.zip PPO model...')
+                opp_id_str = str(opp_id).zfill(2)
+                ppo_model.save(os.path.join(config.MODELDIR, env.name, f'thread_{opp_id}', f'base_{opp_id_str}.zip'))
+                logger.info(f'+++Thread {opp_id}+++ Saving base_{opp_id_str}.zip PPO model...')
 
                 cont = False
             except IOError as e:
@@ -136,11 +134,11 @@ def load_model_with_rank_in_pool(env, name, opp_rank):
     return ppo_model
 
 def load_all_models(env, threadID):
-    modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env.name, f'thread_{threadID}', f'rank_{MPI.COMM_WORLD.Get_rank()}')) if f.startswith("_model")]
+    modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env.name, f'thread_{threadID}')) if f.startswith("_model")]
     modellist.sort()
-    models = [load_model_with_rank(env, 'base.zip', threadID, MPI.COMM_WORLD.Get_rank())]
+    models = [load_model_with_id(env, 'base.zip', threadID)]
     for model_name in modellist:
-        models.append(load_model_with_rank(env, model_name, threadID, MPI.COMM_WORLD.Get_rank()))
+        models.append(load_model_with_id(env, model_name, threadID))
     return models
 
 def load_selected_models(dir, env, rank, checkpoints):
@@ -202,8 +200,8 @@ def load_all_best_models(dir, policy_list, env):
                 modellist.append(modelname)
     return models, modellist
 
-def get_best_model_name(threadID, env_name):
-    modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'thread_{threadID}', f'rank_{MPI.COMM_WORLD.Get_rank()}')) if f.startswith("_model")]
+def get_best_model_name(env_name, threadID):
+    modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'thread_{threadID}')) if f.startswith("_model")]
     
     if len(modellist)==0:
         filename = None
@@ -213,13 +211,15 @@ def get_best_model_name(threadID, env_name):
         
     return filename
 
-def get_opponent_best_model_name(env_name, opp_rank):
-    modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'{opp_rank}')) if f.startswith("_model")]
+def get_opponent_best_model_name(env_name, opp_id, opp_rank):
+    modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'thread_{opp_id}', f'rank_{opp_rank}')) if f.startswith("_model")]
     
     if len(modellist)==0:
-        modellist_with_base = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'{opp_rank}'))]
+        modellist_with_base = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'thread_{opp_id}', f'rank_{opp_rank}'))]
         if len(modellist_with_base) != 0:
-            filename = f'base_{opp_rank}.zip'
+            opp_id_str = str(opp_id).zfill(2)
+            opp_rank_str = str(opp_rank).zfill(2)
+            filename = f'base_{opp_id_str}_{opp_rank_str}.zip'
         else:
             filename = None
     else:
@@ -234,11 +234,12 @@ def get_random_model_name_with_rank(env_name, opp_rank):
     
     if len(modellist)==0: # no saved model yet
         if len(modellist_with_base) != 0:
-            filename = f'base_{opp_rank}.zip'
+            opp_rank_str = str(opp_rank).zfill(2)
+            filename = f'base_{opp_rank_str}.zip'
         else:
             filename = None
     elif len(modellist)==1: # only one saved model, use base model
-        filename = f'base_{opp_rank}.zip'
+        filename = f'base_{opp_rank_str}.zip'
     else:
         modellist.sort()
         filename = random.choice(modellist)
@@ -253,22 +254,17 @@ def get_model_stats(filename):
         best_reward = -np.inf
     else:
         stats = filename.split('_')
-        generation = int(stats[4])
-        best_rules_based = float(stats[5])
-        best_reward = float(stats[6])
-        timesteps = int(stats[7])
+        generation = int(stats[3])
+        best_rules_based = float(stats[4])
+        best_reward = float(stats[5])
+        timesteps = int(stats[6])
     return generation, timesteps, best_rules_based, best_reward
 
 
 def reset_logs(threadID):
     try:
-        filelist = [ f for f in os.listdir(config.LOGDIR) if f not in ['.gitignore']]
-        for f in filelist:
-            if os.path.isfile(f):  
-                os.remove(os.path.join(config.LOGDIR, f))
-            else:
-                rmtree(os.path.join(config.LOGDIR, f))
-        
+        if os.path.exists(os.path.join(config.LOGDIR, f'thread_{threadID}')):
+            rmtree(os.path.join(config.LOGDIR, f'thread_{threadID}'))
         os.makedirs(os.path.join(config.LOGDIR, f'thread_{threadID}'))
         open(os.path.join(config.LOGDIR, f'thread_{threadID}', 'log.txt'), 'a').close()
     
