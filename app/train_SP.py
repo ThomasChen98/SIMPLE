@@ -1,4 +1,4 @@
-# sudo docker-compose exec app python3 train_SP.py -r -e tictactoe -tt 2e7 -t 0.4 -tn 10
+# sudo docker-compose exec app python3 train_SP.py -r -e tictactoe -tt 2e7 -t 0.2 -tn 10
 # sudo docker-compose exec app mpirun -np 5 python3 train_SP.py -r -e tictactoe -tt 2e7 -t 0.1
 
 import os
@@ -171,13 +171,13 @@ if __name__ =="__main__":
     # Extract args
     args = parser.parse_args()
 
-    # # creating thread
-    # thread_list =  [threading.Thread(target=main, args=(i, args)).start() for i in range(args.thread_num)]
+    # creating thread
+    process_list =  [mp.Process(target=main, args=(i, args)) for i in range(args.thread_num)]
+
+    for process in process_list:
+        process.start()
+        
+    for process in process_list:
+        process.join()
     
-    # for thread in thread_list:
-    #     thread.close()
-    
-    # for thread in thread_list:
-    #     thread.join()
-    
-    main(0,args)
+    # main(0,args)

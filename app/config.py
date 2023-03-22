@@ -8,7 +8,7 @@ DISABLED = 50
 LOGDIR = "logs"
 RESULTSPATH = 'viz/results.csv'
 TMPMODELDIR = "zoo/tmp"
-MODELDIR = "zoo/pretrained"
+MODELDIR = "zoo"
 POOLDIR = "pool/20M"
 
 HEATMAPDIR = "plot_tournament"

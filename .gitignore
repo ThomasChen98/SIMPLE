@@ -119,6 +119,7 @@ venv.bak/
 .idea/
 
 # models
+app/zoo/*
 app/zoo/pretrained/*
 app/data/*
 app/old_data/*
