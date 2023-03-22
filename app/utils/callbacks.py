@@ -52,10 +52,6 @@ class SelfPlayCallback(EvalCallback):
 
       # compare the latest reward against the threshold - seperated version
       if result and av_reward > self.threshold:
-        # set update flag file
-        for i in range(MPI.COMM_WORLD.Get_size()):
-          open(os.path.join(self.model_dir, f'_update_rank_{i}.flag'), 'a').close()
-
         if self.rank == 0: #write new files
 
           self.generation += 1

@@ -211,6 +211,11 @@ def get_best_model_name(env_name, threadID):
         
     return filename
 
+def get_model_length(env_name, threadID):
+    modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'thread_{threadID}')) if f.startswith("_model")]
+    
+    return len(modellist)
+
 def get_opponent_best_model_name(env_name, opp_id, opp_rank):
     modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'thread_{opp_id}', f'rank_{opp_rank}')) if f.startswith("_model")]
     
@@ -262,16 +267,10 @@ def get_model_stats(filename):
 
 
 def reset_logs(threadID):
-    try:
-        if os.path.exists(os.path.join(config.LOGDIR, f'thread_{threadID}')):
-            rmtree(os.path.join(config.LOGDIR, f'thread_{threadID}'))
-        os.makedirs(os.path.join(config.LOGDIR, f'thread_{threadID}'))
-        open(os.path.join(config.LOGDIR, f'thread_{threadID}', 'log.txt'), 'a').close()
-    
-        
-    except Exception as e :
-        print(e)
-        print('Reset logs failed')
+    if os.path.exists(os.path.join(config.LOGDIR, f'thread_{threadID}')):
+        rmtree(os.path.join(config.LOGDIR, f'thread_{threadID}'))
+    os.makedirs(os.path.join(config.LOGDIR, f'thread_{threadID}'))
+    open(os.path.join(config.LOGDIR, f'thread_{threadID}', 'log.txt'), 'a').close()
 
 def reset_models(model_dir):
     try:
