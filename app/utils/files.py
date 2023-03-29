@@ -6,6 +6,8 @@ import random
 import csv
 import time
 import numpy as np
+import time
+import re
 
 from mpi4py import MPI
 
@@ -97,8 +99,8 @@ def load_model_with_id(env, name, opp_id):
             try:
                 ppo_model = PPO1(get_network_arch(env.name), env=env)
                 opp_id_str = str(opp_id).zfill(2)
-                ppo_model.save(os.path.join(config.MODELDIR, env.name, f'thread_{opp_id}', f'base_{opp_id_str}.zip'))
-                logger.info(f'+++Thread {opp_id}+++ Saving base_{opp_id_str}.zip PPO model...')
+                ppo_model.save(os.path.join(config.MODELDIR, env.name, f'thread_{opp_id}', f'_base_{opp_id_str}.zip'))
+                logger.info(f'+++Thread {opp_id}+++ Saving _base_{opp_id_str}.zip PPO model...')
 
                 cont = False
             except IOError as e:
@@ -204,7 +206,12 @@ def get_best_model_name(env_name, threadID):
     modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'thread_{threadID}')) if f.startswith("_model")]
     
     if len(modellist)==0:
-        filename = None
+        modellist_with_base = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'thread_{threadID}'))]
+        if len(modellist_with_base) != 0:
+            opp_id_str = str(threadID).zfill(2)
+            filename = f'_base_{opp_id_str}.zip'
+        else:
+            filename = None
     else:
         modellist.sort()
         filename = modellist[-1]
@@ -216,22 +223,25 @@ def get_model_length(env_name, threadID):
     
     return len(modellist)
 
-def get_opponent_best_model_name(env_name, opp_id, opp_rank):
-    modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'thread_{opp_id}', f'rank_{opp_rank}')) if f.startswith("_model")]
+def get_opponent_length(env_name, threadID):
+    with open(os.path.join(config.MODELDIR, env_name, f'thread_{threadID}', 'opponents.txt')) as f:
+        modellist = f.readlines()
     
-    if len(modellist)==0:
-        modellist_with_base = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'thread_{opp_id}', f'rank_{opp_rank}'))]
-        if len(modellist_with_base) != 0:
-            opp_id_str = str(opp_id).zfill(2)
-            opp_rank_str = str(opp_rank).zfill(2)
-            filename = f'base_{opp_id_str}_{opp_rank_str}.zip'
-        else:
-            filename = None
+    return len(modellist)
+
+def get_current_opponent_name_id(env_name, threadID):
+    with open(os.path.join(config.MODELDIR, env_name, f'thread_{threadID}', 'opponents.txt')) as f:
+        modellist = f.readlines()
+    if len(modellist) == 0:
+        return -1
     else:
         modellist.sort()
         filename = modellist[-1]
-        
-    return filename
+        stats = re.split(r'[._]',filename)
+        id = int(stats[2])
+        name = filename[5:]
+    
+    return name, id
 
 def get_random_model_name_with_rank(env_name, opp_rank):
     modellist = [f for f in os.listdir(os.path.join(config.POOLDIR, env_name, f'{opp_rank}')) if f.startswith("_model")]
@@ -240,11 +250,11 @@ def get_random_model_name_with_rank(env_name, opp_rank):
     if len(modellist)==0: # no saved model yet
         if len(modellist_with_base) != 0:
             opp_rank_str = str(opp_rank).zfill(2)
-            filename = f'base_{opp_rank_str}.zip'
+            filename = f'_base_{opp_rank_str}.zip'
         else:
             filename = None
     elif len(modellist)==1: # only one saved model, use base model
-        filename = f'base_{opp_rank_str}.zip'
+        filename = f'_base_{opp_rank_str}.zip'
     else:
         modellist.sort()
         filename = random.choice(modellist)
@@ -252,13 +262,13 @@ def get_random_model_name_with_rank(env_name, opp_rank):
     return filename
 
 def get_model_stats(filename):
-    if filename is None:
+    stats = filename.split('_')
+    if filename is None or len(stats) < 7:
         generation = 0
         timesteps = 0
         best_rules_based = -np.inf
         best_reward = -np.inf
     else:
-        stats = filename.split('_')
         generation = int(stats[3])
         best_rules_based = float(stats[4])
         best_reward = float(stats[5])
@@ -280,3 +290,15 @@ def reset_models(model_dir):
     except Exception as e :
         print(e)
         print('Reset models failed')
+
+def reset_models_PP(model_dir, env_name, threadID):
+    try:
+        rmtree(os.path.join(config.MODELDIR, env_name))
+    except Exception as e :
+        pass
+    time.sleep(5)
+    os.makedirs(model_dir)
+    with open(os.path.join(model_dir, 'opponents.txt'), "a") as f:
+        opp_id_str = str(threadID).zfill(2)
+        filename = f'00000_base_{opp_id_str}.zip'
+        f.write(filename)

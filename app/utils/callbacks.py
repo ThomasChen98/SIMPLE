@@ -83,9 +83,9 @@ class PopulationPlayCallback(EvalCallback):
   def __init__(self, threadID, opponent_type, threshold, env_name, *args, **kwargs):
     super(PopulationPlayCallback, self).__init__(*args, **kwargs)
     self.opponent_type = opponent_type
-    self.threadID = threadID
     self.rank = MPI.COMM_WORLD.Get_rank()
-    self.model_dir = os.path.join(config.MODELDIR, env_name, f'thread_{self.threadID}', f'rank_{self.rank}')
+    self.threadID = threadID
+    self.model_dir = os.path.join(config.MODELDIR, env_name, f'thread_{self.threadID}')
     self.generation, self.base_timesteps, pbmr, bmr = get_model_stats(get_best_model_name(env_name, self.threadID))
 
     #reset best_mean_reward because this is what we use to extract the rewards from the latest evaluation by each agent
@@ -115,35 +115,30 @@ class PopulationPlayCallback(EvalCallback):
         rules_based_rewards = MPI.COMM_WORLD.allgather(self.callback.best_mean_reward)
         av_rules_based_reward = np.mean(rules_based_rewards)
 
-      logger.info("+++Thread {} Rank {}+++ Eval num_timesteps={}, episode_reward={:.2f}".format(self.threadID, self.rank, self.num_timesteps, self.best_mean_reward))
-      logger.info("+++Thread {} Rank {}+++ Total episodes ran={}".format(self.threadID, self.rank, total_episodes))
-
+      if self.rank == 0:
+        logger.info("+++Thread {}+++ Eval num_timesteps={}, episode_reward={:.2f} +/- {:.2f}".format(self.threadID, self.num_timesteps, av_reward, std_reward))
+        logger.info("+++Thread {}+++ Total episodes ran={}".format(self.threadID, total_episodes))
+      
       # compare the latest reward against the threshold - seperated version
       if result and self.best_mean_reward > self.threshold:
-        # set update flag file
-        open(os.path.join(self.model_dir, '_update.flag'), 'a').close()
+        if self.rank == 0: #write new files
 
-        self.generation += 1
-        logger.info(f"+++Thread {self.threadID} Rank {self.rank}+++ New best Model: Generation {self.generation}\n")
-        generation_str = str(self.generation).zfill(5)
-        thread_str = str(self.threadID).zfill(2)
-        rank_str = str(self.rank).zfill(2)
-        best_mean_reward_str = str(round(self.best_mean_reward,3))
-        
-        if self.callback is not None:
-          best_mean_rules_based_reward_str = str(round(self.callback.best_mean_reward,3))
-        else:
-          best_mean_rules_based_reward_str = str(0)
-        
-        source_file = os.path.join(config.TMPMODELDIR, f'thread_{self.threadID}', f'rank_{self.rank}', f"best_model.zip") # this is constantly being written to - not actually the best model
-        target_file = os.path.join(self.model_dir,  f"_model_{thread_str}_{rank_str}_{generation_str}_{best_mean_rules_based_reward_str}_{best_mean_reward_str}_{str(self.base_timesteps + self.num_timesteps)}_.zip")
-        copyfile(source_file, target_file)
-        target_file = os.path.join(self.model_dir,  f"best_model_{thread_str}_{self.rank}.zip")
-        copyfile(source_file, target_file)
-
-        # if playing against a rules based agent, update the global best reward to the improved metric
-        if self.opponent_type == 'rules':
-          self.threshold  = self.best_mean_reward
+          self.generation += 1
+          logger.info(f"+++Thread {self.threadID}+++ New best Model: Generation {self.generation}\n")
+          generation_str = str(self.generation).zfill(5)
+          thread_str = str(self.threadID).zfill(2)
+          av_rewards_str = str(round(av_reward,3))
+          
+          if self.callback is not None:
+            av_rules_based_reward_str = str(round(av_rules_based_reward,3))
+          else:
+            av_rules_based_reward_str = str(0)
+          
+          source_file = os.path.join(config.TMPMODELDIR, f'thread_{self.threadID}', f"best_model.zip") # this is constantly being written to - not actually the best model
+          target_file = os.path.join(self.model_dir,  f"_model_{thread_str}_{generation_str}_{av_rules_based_reward_str}_{av_rewards_str}_{str(self.base_timesteps + self.num_timesteps)}_.zip")
+          copyfile(source_file, target_file)
+          target_file = os.path.join(self.model_dir,  f"best_model_{thread_str}.zip")
+          copyfile(source_file, target_file)
         
       #reset best_mean_reward because this is what we use to extract the rewards from the latest evaluation by each agent
       self.best_mean_reward = -np.inf
@@ -157,9 +152,9 @@ class FictitiousCoPlayCallback(EvalCallback):
   def __init__(self, threadID, opponent_type, threshold, env_name, *args, **kwargs):
     super(FictitiousCoPlayCallback, self).__init__(*args, **kwargs)
     self.opponent_type = opponent_type
-    self.threadID = threadID
     self.rank = MPI.COMM_WORLD.Get_rank()
-    self.model_dir = os.path.join(config.MODELDIR, env_name, f'thread_{self.threadID}', f'rank_{self.rank}')
+    self.threadID = threadID
+    self.model_dir = os.path.join(config.MODELDIR, env_name, f'thread_{self.threadID}')
     self.generation, self.base_timesteps, pbmr, bmr = get_model_stats(get_best_model_name(env_name, self.threadID))
 
     #reset best_mean_reward because this is what we use to extract the rewards from the latest evaluation by each agent
@@ -189,35 +184,30 @@ class FictitiousCoPlayCallback(EvalCallback):
         rules_based_rewards = MPI.COMM_WORLD.allgather(self.callback.best_mean_reward)
         av_rules_based_reward = np.mean(rules_based_rewards)
 
-      logger.info("+++Thread {} Rank {}+++ Eval num_timesteps={}, episode_reward={:.2f}".format(self.threadID, self.rank, self.num_timesteps, self.best_mean_reward))
-      logger.info("+++Thread {} Rank {}+++ Total episodes ran={}".format(self.threadID, self.rank, total_episodes))
+      if self.rank == 0:
+        logger.info("+++Thread {}+++ Eval num_timesteps={}, episode_reward={:.2f} +/- {:.2f}".format(self.threadID, self.num_timesteps, av_reward, std_reward))
+        logger.info("+++Thread {}+++ Total episodes ran={}".format(self.threadID, total_episodes))
 
       # compare the latest reward against the threshold - seperated version
       if result and self.best_mean_reward > self.threshold:
-        # set update flag file
-        open(os.path.join(self.model_dir, '_update.flag'), 'a').close()
+        if self.rank == 0: #write new files
 
-        self.generation += 1
-        logger.info(f"+++Thread {self.threadID} Rank {self.rank}+++ New best Model: Generation {self.generation}\n")
-        generation_str = str(self.generation).zfill(5)
-        thread_str = str(self.threadID).zfill(2)
-        rank_str = str(self.rank).zfill(2)
-        best_mean_reward_str = str(round(self.best_mean_reward,3))
-        
-        if self.callback is not None:
-          best_mean_rules_based_reward_str = str(round(self.callback.best_mean_reward,3))
-        else:
-          best_mean_rules_based_reward_str = str(0)
-        
-        source_file = os.path.join(config.TMPMODELDIR, f'thread_{self.threadID}', f'rank_{self.rank}', f"best_model.zip") # this is constantly being written to - not actually the best model
-        target_file = os.path.join(self.model_dir,  f"_model_{thread_str}_{rank_str}_{generation_str}_{best_mean_rules_based_reward_str}_{best_mean_reward_str}_{str(self.base_timesteps + self.num_timesteps)}_.zip")
-        copyfile(source_file, target_file)
-        target_file = os.path.join(self.model_dir,  f"best_model_{thread_str}_{self.rank}.zip")
-        copyfile(source_file, target_file)
-
-        # if playing against a rules based agent, update the global best reward to the improved metric
-        if self.opponent_type == 'rules':
-          self.threshold  = self.best_mean_reward
+          self.generation += 1
+          logger.info(f"+++Thread {self.threadID}+++ New best Model: Generation {self.generation}\n")
+          generation_str = str(self.generation).zfill(5)
+          thread_str = str(self.threadID).zfill(2)
+          av_rewards_str = str(round(av_reward,3))
+          
+          if self.callback is not None:
+            av_rules_based_reward_str = str(round(av_rules_based_reward,3))
+          else:
+            av_rules_based_reward_str = str(0)
+          
+          source_file = os.path.join(config.TMPMODELDIR, f'thread_{self.threadID}', f"best_model.zip") # this is constantly being written to - not actually the best model
+          target_file = os.path.join(self.model_dir,  f"_model_{thread_str}_{generation_str}_{av_rules_based_reward_str}_{av_rewards_str}_{str(self.base_timesteps + self.num_timesteps)}_.zip")
+          copyfile(source_file, target_file)
+          target_file = os.path.join(self.model_dir,  f"best_model_{thread_str}.zip")
+          copyfile(source_file, target_file)
         
       #reset best_mean_reward because this is what we use to extract the rewards from the latest evaluation by each agent
       self.best_mean_reward = -np.inf

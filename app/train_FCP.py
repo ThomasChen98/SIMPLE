@@ -76,8 +76,8 @@ def main(threadID, args):
     time.sleep(5) # allow time for the base model to be saved out when the environment is created
 
     if args.reset or not os.path.exists(os.path.join(model_dir, f'best_model_{threadID}_{rank}.zip')):
-        logger.info(f'\n+++Thread {threadID} Rank {rank}+++  Loading the base PPO agent to train...')
-        model = PPO1.load(os.path.join(model_dir, f'base_{threadID}_{rank}.zip'), env, **params)
+        logger.info(f'\n+++Thread {threadID} Rank {rank}+++ Loading the base PPO agent to train...')
+        model = PPO1.load(os.path.join(model_dir, f'_base_{threadID}_{rank}.zip'), env, **params)
     else:
         logger.info(f'\n+++Thread {threadID} Rank {rank}+++ Loading the best_model.zip PPO agent to continue training...')
         model = PPO1.load(os.path.join(model_dir, f'best_model_{threadID}_{rank}.zip'), env, **params)

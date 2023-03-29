@@ -7,8 +7,6 @@ from utils.agents import Agent
 
 from mpi4py import MPI
 
-import config
-
 from stable_baselines import logger
 
 def selfplay_wrapper(env):

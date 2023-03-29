@@ -1,5 +1,5 @@
-# sudo docker-compose exec app python3 train_SP.py -r -e tictactoe -tt 2e7 -t 0.2 -tn 5
-# sudo docker-compose exec app mpirun -np 5 python3 train_SP.py -r -e tictactoe -tt 2e7 -t 0.1
+# sudo docker-compose exec app python3 train_SP.py -r -e tictactoe -tt 2e7 -t 0.5 -tn 3
+# sudo docker-compose exec app mpirun -np 5 python3 train_SP.py -r -e tictactoe -tt 2e7 -t 0.5
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
@@ -79,9 +79,9 @@ def main(threadID, args):
     time.sleep(5) # allow time for the base model to be saved out when the environment is created
 
     if args.reset or not os.path.exists(os.path.join(model_dir, f'best_model_{threadID}.zip')):
-        logger.info(f'\n+++Thread {threadID}+++  Loading the base PPO agent to train...')
+        logger.info(f'\n+++Thread {threadID}+++ Loading the base PPO agent to train...')
         threadID_str = str(threadID).zfill(2)
-        model = PPO1.load(os.path.join(model_dir, f'base_{threadID_str}.zip'), env, **params)
+        model = PPO1.load(os.path.join(model_dir, f'_base_{threadID_str}.zip'), env, **params)
     else:
         logger.info(f'\n+++Thread {threadID}+++ Loading the best_model.zip PPO agent to continue training...')
         model = PPO1.load(os.path.join(model_dir, f'best_model_{threadID}.zip'), env, **params)

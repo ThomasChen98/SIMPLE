@@ -1,4 +1,5 @@
-# sudo docker-compose exec app python3 train_PP.py -r -e tictactoe -tt 2e7 -tn 10
+# sudo docker-compose exec app python3 train_PP.py -r -e tictactoe -tt 2e7 -t 0.5 -tn 3
+# sudo docker-compose exec app mpirun -np 5 python3 train_PP.py -r -e tictactoe -tt 2e7 -t 0.5
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
@@ -9,7 +10,7 @@ tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 import argparse
 import time
-from multiprocessing import Process
+import multiprocessing as mp
 from mpi4py import MPI
 
 from stable_baselines.ppo1 import PPO1
@@ -18,31 +19,33 @@ from stable_baselines.common import set_global_seeds
 from stable_baselines import logger
 
 from utils.callbacks import PopulationPlayCallback
-from utils.files import reset_logs, reset_models
+from utils.files import reset_logs, reset_models_PP
 from utils.register import get_environment
 from utils.populationplay import populationplay_wrapper
 
 import config
 
 def main(threadID, args):
+  rank = MPI.COMM_WORLD.Get_rank()
   start_time = MPI.Wtime()
 
   # setup logs and models
-  rank = MPI.COMM_WORLD.Get_rank()
+  model_dir = os.path.join(config.MODELDIR, args.env_name, f'thread_{threadID}')
+  temp_model_dir = os.path.join(config.TMPMODELDIR, f'thread_{threadID}')
 
-  model_dir = os.path.join(config.MODELDIR, args.env_name, f'thread_{threadID}', f'rank_{rank}')
-  temp_model_dir = os.path.join(config.TMPMODELDIR, f'thread_{threadID}', f'rank_{rank}')
-
-  try:
-    os.makedirs(model_dir)
-    os.makedirs(temp_model_dir)
-  except:
-    pass
-  reset_logs(threadID)
-  if args.reset:
-    reset_models(model_dir)
-  
-  logger.configure(os.path.join(config.LOGDIR, f'thread_{threadID}'))
+  if rank == 0:
+    try:
+      os.makedirs(model_dir)
+      os.makedirs(temp_model_dir)
+    except:
+      pass
+    reset_logs(threadID)
+    time.sleep(5)
+    if args.reset:
+      reset_models_PP(model_dir, args.env_name, threadID)
+    logger.configure(os.path.join(config.LOGDIR, f'thread_{threadID}'))
+  else:
+    logger.configure(format_strs=[])
 
   if args.debug:
     logger.set_level(config.DEBUG)
@@ -52,9 +55,9 @@ def main(threadID, args):
 
   workerseed = args.seed + 10 * threadID + 10000 * MPI.COMM_WORLD.Get_rank()
   set_global_seeds(workerseed)
-  logger.info(f'\n+++Thread {threadID} Rank {rank}+++ Workerseed: {workerseed}')
+  logger.info(f'\n+++Thread {threadID}+++ Workerseed: {workerseed}')
 
-  logger.info(f'\n+++Thread {threadID} Rank {rank}+++ Setting up the PP training environment opponents...')
+  logger.info(f'\n+++Thread {threadID}+++ Setting up the PP training environment opponents...')
   base_env = get_environment(args.env_name)
   env = populationplay_wrapper(base_env)(threadID = threadID, population=args.thread_num, opponent_type = args.opponent_type, verbose = args.verbose)
   env.seed(workerseed)
@@ -75,15 +78,16 @@ def main(threadID, args):
 
   time.sleep(5) # allow time for the base model to be saved out when the environment is created
 
-  if args.reset or not os.path.exists(os.path.join(model_dir, f'best_model_{threadID}_{rank}.zip')):
-    logger.info(f'\n+++Thread {threadID} Rank {rank}+++  Loading the base PPO agent to train...')
-    model = PPO1.load(os.path.join(model_dir, f'base_{threadID}_{rank}.zip'), env, **params)
+  if args.reset or not os.path.exists(os.path.join(model_dir, f'best_model_{threadID}.zip')):
+    logger.info(f'\n+++Thread {threadID}+++ Loading the base PPO agent to train...')
+    threadID_str = str(threadID).zfill(2)
+    model = PPO1.load(os.path.join(model_dir, f'_base_{threadID_str}.zip'), env, **params)
   else:
-    logger.info(f'\n+++Thread {threadID} Rank {rank}+++ Loading the best_model.zip PPO agent to continue training...')
-    model = PPO1.load(os.path.join(model_dir, f'best_model_{threadID}_{rank}.zip'), env, **params)
+    logger.info(f'\n+++Thread {threadID}+++ Loading the best_model.zip PPO agent to continue training...')
+    model = PPO1.load(os.path.join(model_dir, f'best_model_{threadID}.zip'), env, **params)
 
   #Callbacks
-  logger.info(f'\n+++Thread {threadID} Rank {rank}+++ Setting up the PP evaluation environment opponents...')
+  logger.info(f'\n+++Thread {threadID}+++ Setting up the selfplay evaluation environment opponents...')
   callback_args = {
     'eval_env': populationplay_wrapper(base_env)(threadID=threadID, population=args.thread_num, opponent_type = args.opponent_type, verbose = args.verbose),
     'best_model_save_path' : temp_model_dir,
@@ -98,13 +102,13 @@ def main(threadID, args):
   # Evaluate the agent against previous versions
   eval_callback = PopulationPlayCallback(threadID, args.opponent_type, args.threshold, args.env_name, **callback_args)
 
-  logger.info(f'\n+++Thread {threadID} Rank {rank}+++ Setup complete - commencing learning...\n')
+  logger.info(f'\n+++Thread {threadID}+++ Setup complete - commencing learning...\n')
 
   model.learn(total_timesteps=int(args.total_timesteps), callback=[eval_callback], reset_num_timesteps = False, tb_log_name="tb")
 
   # calculate processing time
   end_time = MPI.Wtime()
-  logger.info(f"\n+++Thread {threadID} Rank {rank}+++ Processing time: {end_time-start_time}")
+  logger.info(f"\n+++Thread {threadID}+++ Processing time: {end_time-start_time}")
 
   env.close()
   del env
@@ -169,15 +173,12 @@ if __name__ =="__main__":
     args = parser.parse_args()
 
     # creating thread
-    process_list =  [Process(target=main, name='th_'+str(i), args=(i, args)) for i in range(args.thread_num)]
- 
-    # starting threads
+    process_list =  [mp.Process(target=main, args=(i, args)) for i in range(args.thread_num)]
+
     for process in process_list:
         process.start()
- 
-    # closing threads
+        
     for process in process_list:
         process.join()
- 
-    # both threads completely executed
-    print("Done!")
+    
+    # main(0,args)
