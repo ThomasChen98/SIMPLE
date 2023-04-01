@@ -9,7 +9,7 @@ LOGDIR = "logs"
 RESULTSPATH = 'viz/results.csv'
 TMPMODELDIR = "zoo/tmp"
 MODELDIR = "zoo"
-POOLDIR = "pool/20M"
+POOLDIR = "pool"
 
 HEATMAPDIR = "plot_tournament"
 RIDGELINEDIR = "plot_index"

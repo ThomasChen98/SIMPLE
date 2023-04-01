@@ -1,4 +1,5 @@
-# sudo docker-compose exec app python3 train_FCP.py -r -e tictactoe -tt 2e7 -tn 10
+# sudo docker-compose exec app python3 train_FCP.py -r -e tictactoe -tt 2e7 -t 0.5 -p 3 -tn 5
+# sudo docker-compose exec app mpirun -np 5 python3 train_FCP.py -r -e tictactoe -tt 2e7 -t 0.5
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
@@ -9,7 +10,7 @@ tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 import argparse
 import time
-from multiprocessing import Process
+import multiprocessing as mp
 from mpi4py import MPI
 
 from stable_baselines.ppo1 import PPO1
@@ -18,96 +19,100 @@ from stable_baselines.common import set_global_seeds
 from stable_baselines import logger
 
 from utils.callbacks import FictitiousCoPlayCallback
-from utils.files import reset_logs, reset_models
+from utils.files import reset_logs, reset_models_PP
 from utils.register import get_environment
 from utils.fictitiouscoplay import fictitiouscoplay_wrapper
 
 import config
 
 def main(threadID, args):
-    start_time = MPI.Wtime()
+  rank = MPI.COMM_WORLD.Get_rank()
+  start_time = MPI.Wtime()
 
-    # setup logs and models
-    rank = MPI.COMM_WORLD.Get_rank()
+  # setup logs and models
+  model_dir = os.path.join(config.MODELDIR, args.env_name, f'thread_{threadID}')
+  temp_model_dir = os.path.join(config.TMPMODELDIR, f'thread_{threadID}')
 
-    model_dir = os.path.join(config.MODELDIR, args.env_name, f'thread_{threadID}', f'rank_{rank}')
-    temp_model_dir = os.path.join(config.TMPMODELDIR, f'thread_{threadID}', f'rank_{rank}')
-
+  if rank == 0:
     try:
-        os.makedirs(model_dir)
-        os.makedirs(temp_model_dir)
+      os.makedirs(model_dir)
+      os.makedirs(temp_model_dir)
     except:
-        pass
+      pass
     reset_logs(threadID)
+    time.sleep(5)
     if args.reset:
-        reset_models(model_dir)
-    
+      reset_models_PP(model_dir, args.env_name, threadID)
     logger.configure(os.path.join(config.LOGDIR, f'thread_{threadID}'))
+  else:
+    logger.configure(format_strs=[])
 
-    if args.debug:
-        logger.set_level(config.DEBUG)
-    else:
-        time.sleep(5)
-        logger.set_level(config.INFO)
+  if args.debug:
+    logger.set_level(config.DEBUG)
+  else:
+    time.sleep(5)
+    logger.set_level(config.INFO)
 
-    workerseed = args.seed + 10 * threadID + 10000 * MPI.COMM_WORLD.Get_rank()
-    set_global_seeds(workerseed)
-    logger.info(f'\n+++Thread {threadID} Rank {rank}+++ Workerseed: {workerseed}')
+  workerseed = args.seed + 10 * threadID + 10000 * MPI.COMM_WORLD.Get_rank()
+  set_global_seeds(workerseed)
+  logger.info(f'\n+++Thread {threadID}+++ Workerseed: {workerseed} Population size: {args.population_size}')
 
-    logger.info(f'\n+++Thread {threadID} Rank {rank}+++ Setting up the FCP training environment opponents...')
-    base_env = get_environment(args.env_name)
-    env = fictitiouscoplay_wrapper(base_env)(threadID = threadID, opponent_type = args.opponent_type, verbose = args.verbose)
-    env.seed(workerseed)
+  logger.info(f'\n+++Thread {threadID}+++ Setting up the FCP training environment opponents...')
+  base_env = get_environment(args.env_name)
+  env = fictitiouscoplay_wrapper(base_env)(threadID = threadID, population=args.population_size, opponent_type = args.opponent_type, verbose = args.verbose)
+  env.seed(workerseed)
 
-    params = {'gamma':args.gamma,
-        'timesteps_per_actorbatch':args.timesteps_per_actorbatch,
-        'clip_param':args.clip_param,
-        'entcoeff':args.entcoeff,
-        'optim_epochs':args.optim_epochs,
-        'optim_stepsize':args.optim_stepsize,
-        'optim_batchsize':args.optim_batchsize,
-        'lam':args.lam,
-        'adam_epsilon':args.adam_epsilon,
-        'schedule':'linear',
-        'verbose':1,
-        'tensorboard_log':os.path.join(config.LOGDIR, f'thread_{threadID}')
-    }
+  params = {'gamma':args.gamma,
+    'timesteps_per_actorbatch':args.timesteps_per_actorbatch,
+    'clip_param':args.clip_param,
+    'entcoeff':args.entcoeff,
+    'optim_epochs':args.optim_epochs,
+    'optim_stepsize':args.optim_stepsize,
+    'optim_batchsize':args.optim_batchsize,
+    'lam':args.lam,
+    'adam_epsilon':args.adam_epsilon,
+    'schedule':'linear',
+    'verbose':1,
+    'tensorboard_log':os.path.join(config.LOGDIR, f'thread_{threadID}')
+  }
 
-    time.sleep(5) # allow time for the base model to be saved out when the environment is created
+  time.sleep(5) # allow time for the base model to be saved out when the environment is created
 
-    if args.reset or not os.path.exists(os.path.join(model_dir, f'best_model_{threadID}_{rank}.zip')):
-        logger.info(f'\n+++Thread {threadID} Rank {rank}+++ Loading the base PPO agent to train...')
-        model = PPO1.load(os.path.join(model_dir, f'_base_{threadID}_{rank}.zip'), env, **params)
-    else:
-        logger.info(f'\n+++Thread {threadID} Rank {rank}+++ Loading the best_model.zip PPO agent to continue training...')
-        model = PPO1.load(os.path.join(model_dir, f'best_model_{threadID}_{rank}.zip'), env, **params)
+  if args.reset or not os.path.exists(os.path.join(model_dir, f'best_model_{threadID}.zip')):
+    logger.info(f'\n+++Thread {threadID}+++ Loading the base PPO agent to train...')
+    threadID_str = str(threadID).zfill(2)
+    model = PPO1.load(os.path.join(model_dir, f'_base_{threadID_str}.zip'), env, **params)
+  else:
+    logger.info(f'\n+++Thread {threadID}+++ Loading the best_model.zip PPO agent to continue training...')
+    model = PPO1.load(os.path.join(model_dir, f'best_model_{threadID}.zip'), env, **params)
 
-    #Callbacks
-    logger.info(f'\n+++Thread {threadID} Rank {rank}+++ Setting up the FCP evaluation environment opponents...')
-    callback_args = {
-        'eval_env': fictitiouscoplay_wrapper(base_env)(threadID=threadID, opponent_type = args.opponent_type, verbose = args.verbose),
-        'best_model_save_path' : temp_model_dir,
-        'log_path' : os.path.join(config.LOGDIR, f'thread_{threadID}'),
-        'eval_freq' : args.eval_freq,
-        'n_eval_episodes' : args.n_eval_episodes,
-        'deterministic' : False,
-        'render' : True,
-        'verbose' : 0
-    }
-        
-    # Evaluate the agent against previous versions
-    eval_callback = FictitiousCoPlayCallback(threadID, args.opponent_type, args.threshold, args.env_name, **callback_args)
+  #Callbacks
+  logger.info(f'\n+++Thread {threadID}+++ Setting up the FCP evaluation environment opponents...')
+  callback_args = {
+    'eval_env': fictitiouscoplay_wrapper(base_env)(threadID=threadID, population=args.population_size, opponent_type = args.opponent_type, verbose = args.verbose),
+    'best_model_save_path' : temp_model_dir,
+    'log_path' : os.path.join(config.LOGDIR, f'thread_{threadID}'),
+    'eval_freq' : args.eval_freq,
+    'n_eval_episodes' : args.n_eval_episodes,
+    'deterministic' : False,
+    'render' : True,
+    'verbose' : 0
+  }
+      
+  # Evaluate the agent against previous versions
+  eval_callback = FictitiousCoPlayCallback(threadID, args.opponent_type, args.threshold, args.env_name, **callback_args)
 
-    logger.info(f'\n+++Thread {threadID} Rank {rank}+++ Setup complete - commencing learning...\n')
+  logger.info(f'\n+++Thread {threadID}+++ Setup complete - commencing learning...\n')
 
-    model.learn(total_timesteps=int(args.total_timesteps), callback=[eval_callback], reset_num_timesteps = False, tb_log_name="tb")
+  model.learn(total_timesteps=int(args.total_timesteps), callback=[eval_callback], reset_num_timesteps = False, tb_log_name="tb")
 
-    # calculate processing time
-    end_time = MPI.Wtime()
-    logger.info(f"\n+++Thread {threadID} Rank {rank}+++ Processing time: {end_time-start_time}")
+  # calculate processing time
+  end_time = MPI.Wtime()
+  logger.info(f"\n+++Thread {threadID}+++ Processing time: {end_time-start_time}")
 
-    env.close()
-    del env
+  env.close()
+  del env
+
 
 if __name__ =="__main__":
     # Setup argparse to show defaults on help
@@ -163,20 +168,19 @@ if __name__ =="__main__":
 
     parser.add_argument("--thread_num", "-tn",  type = int, default = 1
                 , help="Number of threads run in parallel")
+    parser.add_argument("--population_size", "-p",  type = int, default = 1
+                , help="Population size for FCP")
 
     # Extract args
     args = parser.parse_args()
 
     # creating thread
-    process_list =  [Process(target=main, name='th_'+str(i), args=(i, args)) for i in range(args.thread_num)]
- 
-    # starting threads
+    process_list =  [mp.Process(target=main, args=(i, args)) for i in range(args.thread_num)]
+
     for process in process_list:
         process.start()
- 
-    # closing threads
+        
     for process in process_list:
         process.join()
- 
-    # both threads completely executed
-    print("Done!")
+    
+    # main(0,args)

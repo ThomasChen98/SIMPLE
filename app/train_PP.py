@@ -87,7 +87,7 @@ def main(threadID, args):
     model = PPO1.load(os.path.join(model_dir, f'best_model_{threadID}.zip'), env, **params)
 
   #Callbacks
-  logger.info(f'\n+++Thread {threadID}+++ Setting up the selfplay evaluation environment opponents...')
+  logger.info(f'\n+++Thread {threadID}+++ Setting up the PP evaluation environment opponents...')
   callback_args = {
     'eval_env': populationplay_wrapper(base_env)(threadID=threadID, population=args.thread_num, opponent_type = args.opponent_type, verbose = args.verbose),
     'best_model_save_path' : temp_model_dir,

@@ -114,13 +114,11 @@ def load_model_with_id(env, name, opp_id):
     
     return ppo_model
 
-def load_model_with_rank_in_pool(env, name, opp_rank):
+def load_SP_model_with_id(env, name, opp_id):
 
-    my_rank = MPI.COMM_WORLD.Get_rank()
-
-    filename = os.path.join(config.POOLDIR, env.name, f'{opp_rank}', name)
+    filename = os.path.join(config.POOLDIR, env.name, 'models', f'thread_{opp_id}', name)
     if os.path.exists(filename):
-        logger.info(f'Rank {my_rank} loading {name}')
+        logger.info(f'+++Self-Play Thread {opp_id}+++ Loading {name}')
         cont = True
         while cont:
             try:
@@ -218,6 +216,14 @@ def get_best_model_name(env_name, threadID):
         
     return filename
 
+def get_random_SP_model_name(env_name, threadID):
+    modellist = [f for f in os.listdir(os.path.join(config.POOLDIR, env_name, 'models', f'thread_{threadID}')) if f.startswith("_")]
+    
+    modellist.sort()
+    filename = random.choice(modellist)
+        
+    return filename
+
 def get_model_length(env_name, threadID):
     modellist = [f for f in os.listdir(os.path.join(config.MODELDIR, env_name, f'thread_{threadID}')) if f.startswith("_model")]
     
@@ -242,24 +248,6 @@ def get_current_opponent_name_id(env_name, threadID):
         name = filename[5:]
     
     return name, id
-
-def get_random_model_name_with_rank(env_name, opp_rank):
-    modellist = [f for f in os.listdir(os.path.join(config.POOLDIR, env_name, f'{opp_rank}')) if f.startswith("_model")]
-    modellist_with_base = [f for f in os.listdir(os.path.join(config.POOLDIR, env_name, f'{opp_rank}'))]
-    
-    if len(modellist)==0: # no saved model yet
-        if len(modellist_with_base) != 0:
-            opp_rank_str = str(opp_rank).zfill(2)
-            filename = f'_base_{opp_rank_str}.zip'
-        else:
-            filename = None
-    elif len(modellist)==1: # only one saved model, use base model
-        filename = f'_base_{opp_rank_str}.zip'
-    else:
-        modellist.sort()
-        filename = random.choice(modellist)
-        
-    return filename
 
 def get_model_stats(filename):
     stats = filename.split('_')
