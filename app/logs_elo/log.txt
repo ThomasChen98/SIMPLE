@@ -1,12 +1,50 @@
 Logging to logs_elo
 
-##### Rank 1 #####
-Loading tictactoe 1 models...
+##### Rank 0 #####
+Loading tictactoe 0 models...
+Loading _model_00_00001_0_0.56_70656_.zip
+Loading _model_00_00016_0_0.74_357376_.zip
+Loading _model_00_00031_0_0.55_807936_.zip
+Loading _model_00_00046_0_0.8_3214336_.zip
+Loading _model_00_00061_0_0.66_3746816_.zip
+Loading _model_00_00076_0_0.65_4299776_.zip
+Loading _model_00_00091_0_0.95_4494336_.zip
+Loading _model_00_00106_0_0.58_4811776_.zip
+Loading _model_00_00121_0_0.87_5231616_.zip
+Loading _model_00_00136_0_0.78_5456896_.zip
+Loading _model_00_00151_0_0.59_5805056_.zip
+Loading _model_00_00166_0_0.87_6091776_.zip
+Loading _model_00_00181_0_0.61_6388736_.zip
+Loading _model_00_00196_0_0.87_9522176_.zip
+Loading _model_00_00211_0_0.57_10085376_.zip
+Loading _model_00_00226_0_0.77_12798976_.zip
+Loading _model_00_00241_0_0.62_13485056_.zip
+Loading _model_00_00256_0_0.58_16894976_.zip
 
-Playing 100 games for each of 0 policies...
+Playing 100 games for each of 18 policies...
+Gameplay 1-0 finished, policy 1 ELO rating: 944.0
+Gameplay 2-1 finished, policy 2 ELO rating: 1968.0
+Gameplay 3-2 finished, policy 3 ELO rating: 2096.0
+Gameplay 4-3 finished, policy 4 ELO rating: 2096.0
+Gameplay 5-4 finished, policy 5 ELO rating: 1616.0
+Gameplay 6-5 finished, policy 6 ELO rating: 2576.0
+Gameplay 7-6 finished, policy 7 ELO rating: 1472.0
+Gameplay 8-7 finished, policy 8 ELO rating: 2368.0
+Gameplay 9-8 finished, policy 9 ELO rating: 2784.0
+Gameplay 10-9 finished, policy 10 ELO rating: 64.0
+Gameplay 11-10 finished, policy 11 ELO rating: 2848.0
+Gameplay 12-11 finished, policy 12 ELO rating: 1936.0
+Gameplay 13-12 finished, policy 13 ELO rating: 2112.0
+Gameplay 14-13 finished, policy 14 ELO rating: 2992.0
+Gameplay 15-14 finished, policy 15 ELO rating: 2224.0
+Gameplay 16-15 finished, policy 16 ELO rating: 2368.0
+Gameplay 17-16 finished, policy 17 ELO rating: 1232.0
+1th elo received
 2th elo received
 3th elo received
 4th elo received
 5th elo received
+6th elo received
+7th elo received
 
-Processing time: 0.8581653529545292
+Processing time: 63.88735663300031

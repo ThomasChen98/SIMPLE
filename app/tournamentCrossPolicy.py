@@ -3,7 +3,7 @@
 ### Date: Mar 7, 2023
 
 ### Sample usage
-# sudo docker-compose exec app mpirun -np 36 python3 tournamentCrossPolicy.py -e tictactoe -r -g 100 -ld data
+# sudo docker-compose exec app mpirun -np 16 python3 tournamentCrossPolicy.py -e tictactoe -r -g 100 -ld data
 # sudo docker-compose exec app python3 tournamentCrossPolicy.py -e tictactoe -g 100 -l tictactoe_g100.npz
 
 import os
@@ -63,9 +63,8 @@ def main(args):
     set_global_seeds(workerseed)
 
     # load the policies
-    policy_dir = ['SP_tictactoe_10M_s5', 'PP_tictactoe_20M_s3', 'PP_tictactoe_20M_s5',\
-                  'PP_tictactoe_20M_s10', 'FCP_tictactoe_20M_s3', 'FCP_tictactoe_20M_s5',\
-                  'FCP_tictactoe_20M_s10']
+    policy_dir = ['SP_TTT_20M_s8', 'PP_TTT_20M_s3', 'PP_TTT_20M_s5',\
+                  'FCP_TTT_20M_p3']
     
     # check mpi rank
     if MPI.COMM_WORLD.Get_size() != len(policy_dir)**2:
@@ -92,23 +91,23 @@ def main(args):
             # set up pairing agents
             agents.append(Agent('P1', ego_models[i]))
             agents.append(Agent('P2', opp_models[j]))
-            logger.debug(f'Pair {i+1}-{j+1}: P1 = {ego_model_list[i]}: {agents[0]}, P2 = {opp_model_list[j]}: {agents[1]}')
+            logger.debug(f'Pair {i}-{j}: P1 = {ego_model_list[i]}: {agents[0]}, P2 = {opp_model_list[j]}: {agents[1]}')
 
             for game in range(args.games):
                 # reset env
                 obs = env.reset()
                 done = False
-                logger.debug(f'Gameplay {i+1}-{j+1} #{game+1} start')
+                logger.debug(f'Gameplay {i}-{j} #{game} start')
 
                 # shuffle player order
                 players = agents[:]
-                logger.debug(f'Gameplay {i+1}-{j+1} #{game+1} P1 = {players[0]}, P2 = {players[1]}')
+                logger.debug(f'Gameplay {i}-{j} #{game} P1 = {players[0]}, P2 = {players[1]}')
                 if args.randomise_players:
                     random.shuffle(players)
 
                 # debug info
                 for index, player in enumerate(players):
-                    logger.debug(f'Gameplay {i+1}-{j+1} #{game+1}: Player {index+1} = {player.name}')
+                    logger.debug(f'Gameplay {i}-{j} #{game}: Player {index} = {player.name}')
 
                 while not done:
                     # current player info
@@ -135,11 +134,11 @@ def main(args):
                     
                     env.render()
                     
-                    logger.debug(f"Gameplay {i+1}-{j+1} #{game+1} step: {total_rewards[i][j]}")
+                    logger.debug(f"Gameplay {i}-{j} #{game} step: {total_rewards[i][j]}")
             
-                logger.debug(f"Gameplay {i+1}-{j+1} #{game+1} finished: {total_rewards[i][j]}")
+                logger.debug(f"Gameplay {i}-{j} #{game} finished: {total_rewards[i][j]}")
             
-            logger.info(f"Gameplay {i+1}-{j+1} finished")
+            logger.info(f"Gameplay {i}-{j} finished")
 
             # reset agents
             agents = []
@@ -172,7 +171,7 @@ def main(args):
             col = i//len(policy_dir)
             row = i%len(policy_dir)
             world_mean_total_rewards[col,row,:] = current_mean_total_rewards
-            logger.info(f"{i+1}th normalized mean_total_reward received")
+            logger.info(f"{i}th normalized mean_total_reward received")
 
         # save data
         total_name = f'./plot_tournament/{args.env_name}_g{args.games}'
@@ -183,7 +182,7 @@ def main(args):
         logger.info(f"\nGenerate total tournament heatmap")
     else:
         MPI.COMM_WORLD.Send( [total_rewards_normalized.mean(axis=(0, 1)), MPI.DOUBLE], dest=0, tag=rank )
-        logger.info(f"\nRank {rank+1} normalized mean_total_reward sent")
+        logger.info(f"\nRank {rank} normalized mean_total_reward sent")
     
     # calculate processing time
     end_time = MPI.Wtime()

@@ -3,7 +3,7 @@
 ### Date: Feb 24, 2023
 
 ### Sample usage
-# sudo docker-compose exec app mpirun -np 25 python3 tournamentSelfPolicy.py -e tictactoe -r -g 100 -a 1 25 2 -p 5 -ld data/SP_tictactoe_10M_s5/models
+# sudo docker-compose exec app mpirun -np 64 python3 tournamentSelfPolicy.py -e tictactoe -r -g 100 -a 1 271 18 -p 8 -ld data/SP_TTT_20M_s8/models
 # sudo docker-compose exec app python3 tournamentSelfPolicy.py -e tictactoe -g 100 -a 1 25 2 -l SP_tictactoe_10M_s5_1.25.2/tictactoe_avg_1.25.2_g100.npz
 
 import os
@@ -68,7 +68,7 @@ def main(args):
     checkpoint = np.arange(args.arange[0],args.arange[1],args.arange[2])
     ego_rank = rank//args.population
     opp_rank = rank%args.population
-    logger.info(f'\n##### Rank {rank+1} #####\nLoading {args.env_name} seed {ego_rank+1} model as ego, seed {opp_rank+1} model as opponent...')
+    logger.info(f'\n##### Rank {rank} #####\nLoading {args.env_name} seed {ego_rank} model as ego, seed {opp_rank} model as opponent...')
     ego_models, ego_model_list = load_selected_models(args.load_dir,env,ego_rank,checkpoint)
     opp_models, opp_model_list = load_selected_models(args.load_dir,env,opp_rank,checkpoint)
     if len(ego_models) != len(opp_models):
@@ -88,23 +88,23 @@ def main(args):
             # set up pairing agents
             agents.append(Agent('P1', ego_models[i]))
             agents.append(Agent('P2', opp_models[j]))
-            logger.debug(f'Pair {i+1}-{j+1}: P1 = {ego_model_list[i]}: {agents[0]}, P2 = {opp_model_list[j]}: {agents[1]}')
+            logger.debug(f'Pair {i}-{j}: P1 = {ego_model_list[i]}: {agents[0]}, P2 = {opp_model_list[j]}: {agents[1]}')
 
             for game in range(args.games):
                 # reset env
                 obs = env.reset()
                 done = False
-                logger.debug(f'Gameplay {i+1}-{j+1} #{game+1} start')
+                logger.debug(f'Gameplay {i}-{j} #{game} start')
 
                 # shuffle player order
                 players = agents[:]
-                logger.debug(f'Gameplay {i+1}-{j+1} #{game+1} P1 = {players[0]}, P2 = {players[1]}')
+                logger.debug(f'Gameplay {i}-{j} #{game} P1 = {players[0]}, P2 = {players[1]}')
                 if args.randomise_players:
                     random.shuffle(players)
 
                 # debug info
                 for index, player in enumerate(players):
-                    logger.debug(f'Gameplay {i+1}-{j+1} #{game+1}: Player {index+1} = {player.name}')
+                    logger.debug(f'Gameplay {i}-{j} #{game}: Player {index} = {player.name}')
 
                 while not done:
                     # current player info
@@ -131,11 +131,11 @@ def main(args):
                     
                     env.render()
                     
-                    logger.debug(f"Gameplay {i+1}-{j+1} #{game+1} step: {total_rewards[i][j]}")
+                    logger.debug(f"Gameplay {i}-{j} #{game} step: {total_rewards[i][j]}")
             
-                logger.debug(f"Gameplay {i+1}-{j+1} #{game+1} finished: {total_rewards[i][j]}")
+                logger.debug(f"Gameplay {i}-{j} #{game} finished: {total_rewards[i][j]}")
             
-            logger.info(f"Gameplay {i+1}-{j+1} finished")
+            logger.info(f"Gameplay {i}-{j} finished")
 
             # reset agents
             agents = []
@@ -146,12 +146,12 @@ def main(args):
     total_rewards_normalized = total_rewards / args.games
 
     # save data
-    save_name = f'./plot_tournament/{args.env_name}_{ego_rank+1}vs{opp_rank+1}_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}'
+    save_name = f'./plot_tournament/{args.env_name}_{ego_rank}vs{opp_rank}_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}'
     np.savez_compressed(save_name, total_rewards_normalized=total_rewards_normalized, checkpoint=checkpoint, ranks=[ego_rank, opp_rank])
 
     # plot
     heatmap_plot(total_rewards_normalized, checkpoint, args, ranks=[ego_rank, opp_rank])
-    logger.info(f"\nGenerate tournament heatmap for seed {ego_rank+1} vs. seed {opp_rank+1}")
+    logger.info(f"\nGenerate tournament heatmap for seed {ego_rank} vs. seed {opp_rank}")
 
     # plot average heatmap & deviation
     if rank == 0:
@@ -161,7 +161,7 @@ def main(args):
             current_total_rewards_normalized = np.zeros((policy_num, policy_num, env.n_players))
             MPI.COMM_WORLD.Recv( [current_total_rewards_normalized, MPI.DOUBLE], source=i, tag=i )
             world_total_rewards_normalized[i,:,:,:] = current_total_rewards_normalized
-            logger.info(f"{i+1}th normalized total_reward received")
+            logger.info(f"{i}th normalized total_reward received")
         total_rewards_normalized_avg = np.mean(world_total_rewards_normalized, axis=0)
         total_rewards_normalized_std = np.std(world_total_rewards_normalized, axis=0)
 
@@ -178,7 +178,7 @@ def main(args):
         logger.info(f"\nGenerate tournament heatmap std")
     else:
         MPI.COMM_WORLD.Send( [total_rewards_normalized, MPI.DOUBLE], dest=0, tag=rank )
-        logger.info(f"\nRank {rank+1} normalized total_reward sent")
+        logger.info(f"\nRank {rank} normalized total_reward sent")
     
     # calculate processing time
     end_time = MPI.Wtime()
@@ -208,10 +208,10 @@ def heatmap_plot(total_rewards_normalized, checkpoint, args, ranks=None, opt='de
     if opt == 'default':
         P1_title = f"{args.env_name} row player average score with {args.games} gameplays"
         P2_title = f"{args.env_name} column player average score with {args.games} gameplays"
-        xlabel = f"Checkpoints of seed {ranks[1]+1} for column player"
-        ylabel = f"Checkpoints of seed {ranks[0]+1} for row player"
-        P1_savename = f'./plot_tournament/{args.env_name}_{ranks[0]+1}vs{ranks[1]+1}_P1_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
-        P2_savename = f'./plot_tournament/{args.env_name}_{ranks[0]+1}vs{ranks[1]+1}_P2_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
+        xlabel = f"Checkpoints of seed {ranks[1]} for column player"
+        ylabel = f"Checkpoints of seed {ranks[0]} for row player"
+        P1_savename = f'./plot_tournament/{args.env_name}_{ranks[0]}vs{ranks[1]}_P1_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
+        P2_savename = f'./plot_tournament/{args.env_name}_{ranks[0]}vs{ranks[1]}_P2_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
     elif opt == 'avg':
         P1_title = f"{args.env_name} row player average score with {args.games} gameplays across {args.population} seeds"
         P2_title = f"{args.env_name} column player average score with {args.games} gameplays across {args.population} seeds"

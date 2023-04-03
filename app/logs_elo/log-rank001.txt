@@ -1,8 +1,43 @@
 Logging to logs_elo
 
-##### Rank 2 #####
-Loading tictactoe 2 models...
+##### Rank 1 #####
+Loading tictactoe 1 models...
+Loading _model_01_00001_0_0.64_91136_.zip
+Loading _model_01_00016_0_0.83_367616_.zip
+Loading _model_01_00031_0_0.74_592896_.zip
+Loading _model_01_00046_0_0.53_1401856_.zip
+Loading _model_01_00061_0_0.78_2937856_.zip
+Loading _model_01_00076_0_0.96_3931136_.zip
+Loading _model_01_00091_0_0.64_4156416_.zip
+Loading _model_01_00106_0_0.94_4350976_.zip
+Loading _model_01_00121_0_0.56_4781056_.zip
+Loading _model_01_00136_0_0.62_5262336_.zip
+Loading _model_01_00151_0_0.92_6808576_.zip
+Loading _model_01_00166_0_0.94_7279616_.zip
+Loading _model_01_00181_0_0.6_7545856_.zip
+Loading _model_01_00196_0_0.96_7873536_.zip
+Loading _model_01_00211_0_0.68_8344576_.zip
+Loading _model_01_00226_0_0.92_8600576_.zip
+Loading _model_01_00241_0_0.62_9982976_.zip
+Loading _model_01_00256_0_0.9_10208256_.zip
 
-Playing 100 games for each of 0 policies...
+Playing 100 games for each of 18 policies...
+Gameplay 1-0 finished, policy 1 ELO rating: 736.0
+Gameplay 2-1 finished, policy 2 ELO rating: 1376.0
+Gameplay 3-2 finished, policy 3 ELO rating: 1952.0
+Gameplay 4-3 finished, policy 4 ELO rating: 1616.0
+Gameplay 5-4 finished, policy 5 ELO rating: 2656.0
+Gameplay 6-5 finished, policy 6 ELO rating: 800.0
+Gameplay 7-6 finished, policy 7 ELO rating: 544.0
+Gameplay 8-7 finished, policy 8 ELO rating: 1840.0
+Gameplay 9-8 finished, policy 9 ELO rating: 1664.0
+Gameplay 10-9 finished, policy 10 ELO rating: 1632.0
+Gameplay 11-10 finished, policy 11 ELO rating: 2528.0
+Gameplay 12-11 finished, policy 12 ELO rating: 1456.0
+Gameplay 13-12 finished, policy 13 ELO rating: 2256.0
+Gameplay 14-13 finished, policy 14 ELO rating: 1456.0
+Gameplay 15-14 finished, policy 15 ELO rating: 3040.0
+Gameplay 16-15 finished, policy 16 ELO rating: 1376.0
+Gameplay 17-16 finished, policy 17 ELO rating: 2080.0
 
-Rank 2 elo sent
+Rank 1 elo sent

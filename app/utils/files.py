@@ -144,16 +144,16 @@ def load_all_models(env, threadID):
 def load_selected_models(dir, env, rank, checkpoints):
     modellist = []
     for cp in checkpoints:
-        for f in os.listdir(os.path.join(dir, f'{rank}')):
+        for f in os.listdir(os.path.join(dir, f'thread_{rank}')):
             if f.startswith("_model_"+str(rank).zfill(2)+"_"+str(cp).zfill(5)):
                 modellist.append(f)
     modellist.sort()
     models = []
     for model_name in modellist:
-        models.append(load_model_custom(os.path.join(dir, f'{rank}'), env=env, name = model_name))
+        models.append(load_model_with_name(os.path.join(dir, f'thread_{rank}'), env=env, name = model_name))
     return models, modellist
 
-def load_model_custom(dir, env, name):
+def load_model_with_name(dir, env, name):
 
     filename = os.path.join(dir, name)
     if os.path.exists(filename):

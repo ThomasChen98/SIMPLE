@@ -3,7 +3,7 @@
 ### Date: Feb 24, 2023
 
 ### Sample usage
-# sudo docker-compose exec app mpirun -np 25 python3 influenceLevelIndex.py -e tictactoe -g 100 -a 1 26 1 -p 5 -ld data/SP_tictactoe_10M_s5/models
+# sudo docker-compose exec app mpirun -np 25 python3 influenceLevelIndex.py -e tictactoe -g 100 -a 1 26 1 -p 5 -ld data/SP_TTT_20M_s8/models
 # sudo docker-compose exec app python3 influenceLevelIndex.py -e tictactoe -g 100 -a 1 26 1 -l SP_tictactoe_10M_s5/tictactoe_avg_1.26.1_g100.npz
 
 import os
@@ -72,7 +72,7 @@ def main(args):
     checkpoint = np.arange(args.arange[0],args.arange[1],args.arange[2])
     ego_rank = rank//args.population
     opp_rank = rank%args.population
-    logger.info(f'\n##### Rank {rank+1} #####\nLoading {args.env_name} seed {ego_rank+1} model as ego, seed {opp_rank+1} model as opponent...')
+    logger.info(f'\n##### Rank {rank} #####\nLoading {args.env_name} seed {ego_rank} model as ego, seed {opp_rank} model as opponent...')
     ego_models, ego_model_list = load_selected_models(args.load_dir,env,ego_rank,checkpoint)
     opp_models, opp_model_list = load_selected_models(args.load_dir,env,opp_rank,checkpoint)
     if len(ego_models) != len(opp_models):
@@ -109,23 +109,23 @@ def main(args):
         # set up pairing agents
         agents.append(Agent('P1', ego_models[-1])) # ego agent always uses the best policy
         agents.append(Agent('P2', opp_models[j]))
-        logger.debug(f'Agent j policy {j+1}: P1 = {ego_model_list[-1]}: {agents[0]}, P2 = {opp_model_list[j]}: {agents[1]}')
+        logger.debug(f'Agent j policy {j}: P1 = {ego_model_list[-1]}: {agents[0]}, P2 = {opp_model_list[j]}: {agents[1]}')
 
         for game in range(args.games):
             # reset env
             obs = env.reset()
             done = False
-            logger.debug(f'Agent j policy {j+1} #{game+1} start')
+            logger.debug(f'Agent j policy {j} #{game} start')
 
             # shuffle player order
             players = agents[:]
-            logger.debug(f'Agent j policy {j+1} #{game+1} P1 = {players[0]}, P2 = {players[1]}')
+            logger.debug(f'Agent j policy {j} #{game} P1 = {players[0]}, P2 = {players[1]}')
             if args.randomise_players:
                 random.shuffle(players)
 
             # debug info
             for index, player in enumerate(players):
-                logger.debug(f'Agent j policy {j+1} #{game+1}: Player {index+1} = {player.name}')
+                logger.debug(f'Agent j policy {j} #{game}: Player {index} = {player.name}')
 
             while not done:
                 # current player info
@@ -152,9 +152,9 @@ def main(args):
                 
                 env.render()
 
-                logger.debug(f"Agent j policy {j+1} #{game+1} total reward so far: {total_rewards[j][game]}")
+                logger.debug(f"Agent j policy {j} #{game} total reward so far: {total_rewards[j][game]}")
             
-            logger.debug(f"Agent j policy {j+1} #{game+1} finished total reward: {total_rewards[j][game]}")
+            logger.debug(f"Agent j policy {j} #{game} finished total reward: {total_rewards[j][game]}")
 
             # calculate probability distribution
             if total_rewards[j][game][0] == -1:
@@ -163,21 +163,21 @@ def main(args):
                 reward_prob_dist[j][1] += 1 # reward = 0
             else:
                 reward_prob_dist[j][2] += 1
-            logger.debug(f"Agent j policy {j+1} #{game+1} reward prob dist: {reward_prob_dist[j]}")
+            logger.debug(f"Agent j policy {j} #{game} reward prob dist: {reward_prob_dist[j]}")
         
         # convert reward_prob_dist to probability density
         reward_prob_dist[j] /= sum(reward_prob_dist[j])
-        logger.info(f"Agent j policy {j+1} finished")
-        logger.debug(f"Agent j policy {j+1} reward prob density: {reward_prob_dist[j]}")
+        logger.info(f"Agent j policy {j} finished")
+        logger.debug(f"Agent j policy {j} reward prob density: {reward_prob_dist[j]}")
 
         # calculate marginal prob dist
         marginal_prob_dist += reward_prob_dist[j]*policy_sampling_dist[j]
-        logger.debug(f"Agent j policy {j+1} marginal prob density so far: {marginal_prob_dist}")
+        logger.debug(f"Agent j policy {j} marginal prob density so far: {marginal_prob_dist}")
 
         # reset agents
         agents = []
 
-    logger.debug(f"Agent j policy {j+1} marginal prob density: {marginal_prob_dist}")
+    logger.debug(f"Agent j policy {j} marginal prob density: {marginal_prob_dist}")
 
     env.close()
 
@@ -186,19 +186,19 @@ def main(args):
     influence_level_index = 0
     for j in range(policy_num): 
         kl_divergence[j] = sum(rel_entr(reward_prob_dist[j],marginal_prob_dist))
-        logger.debug(f"KL divergence between P(R|theta{j+1}) and P(R): {kl_divergence[j]}")
+        logger.debug(f"KL divergence between P(R|theta{j}) and P(R): {kl_divergence[j]}")
         influence_level_index += kl_divergence[j]*policy_sampling_dist[j]
     logger.info(f'\nInfluence Level Index of {args.env_name} approximated by given {policy_num} policies: {influence_level_index}')
 
     # save data
-    save_name = f'./plot_index/{args.env_name}_{ego_rank+1}vs{opp_rank+1}_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}'
+    save_name = f'./plot_index/{args.env_name}_{ego_rank}vs{opp_rank}_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}'
     np.savez_compressed(save_name, reward_prob_dist=reward_prob_dist, kl_divergence=kl_divergence,\
                         influence_level_index=influence_level_index, total_rewards=total_rewards,\
                         checkpoint=checkpoint, ranks=[ego_rank, opp_rank])
 
     # plot
     ridgeline_plot(reward_prob_dist, kl_divergence, influence_level_index, total_rewards, checkpoint, args, ranks=[ego_rank, opp_rank])
-    logger.info(f"\nGenerate ili ridgeline for seed {ego_rank+1} vs. seed {opp_rank+1}")
+    logger.info(f"\nGenerate ili ridgeline for seed {ego_rank} vs. seed {opp_rank}")
 
     # plot average ridgeline
     if rank == 0:
@@ -224,7 +224,7 @@ def main(args):
             world_kl_divergence[i,:] = current_kl_divergence
             world_influence_level_index[i] = current_influence_level_index
             world_total_rewards[i,:,:,:] = current_total_rewards
-            logger.info(f"{i+1}th package received")
+            logger.info(f"{i}th package received")
         avg_reward_prob_dist = np.zeros_like(reward_prob_dist)
         avg_kl_divergence = np.zeros_like(kl_divergence)
         avg_influence_level_index = np.zeros_like(influence_level_index)
@@ -252,7 +252,7 @@ def main(args):
         MPI.COMM_WORLD.Send([kl_divergence, MPI.DOUBLE], dest=0, tag=1)
         MPI.COMM_WORLD.Send([influence_level_index, MPI.DOUBLE], dest=0, tag=2)
         MPI.COMM_WORLD.Send([total_rewards, MPI.DOUBLE], dest=0, tag=3)
-        logger.info(f"\nRank {rank+1} pacakge sent")
+        logger.info(f"\nRank {rank} pacakge sent")
     
     # calculate processing time
     end_time = MPI.Wtime()
@@ -275,12 +275,10 @@ def ridgeline_plot(reward_prob_dist, kl_divergence, influence_level_index, total
         density_df = density_df.append(temp, ignore_index=True)
 
     # set title & label
-    xlabel = 'default_xlabel'
-    title = 'default_title'
     savename = 'default_savename.png'
     if opt == 'default':
-        plot_title = f"{args.env_name} seed {ranks[0]+1} vs. seed {ranks[1]+1} player 1 reward distribution with {args.games} gameplays\n influence_level_index={influence_level_index:.5f}"
-        savename = f'./plot_index/P1_{args.env_name}_{ranks[0]+1}vs{ranks[1]+1}_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
+        plot_title = f"{args.env_name} seed {ranks[0]} vs. seed {ranks[1]} player 1 reward distribution with {args.games} gameplays\n influence_level_index={influence_level_index:.5f}"
+        savename = f'./plot_index/P1_{args.env_name}_{ranks[0]}vs{ranks[1]}_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
     elif opt == 'avg':
         plot_title = f"{args.env_name} player 1 average reward distribution with {args.games} gameplays across {args.population} seeds\n influence_level_index={influence_level_index:.5f}"
         savename = f'./plot_index/P1_{args.env_name}_avg_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
@@ -304,12 +302,12 @@ def ridgeline_plot(reward_prob_dist, kl_divergence, influence_level_index, total
     # Define and use a simple function to label the plot in axes coordinates
     def label(x, color, label):
         ax = plt.gca()
-        ax.text(0, .2, label, fontweight="bold", color=color, ha="left", va="center", transform=ax.transAxes)
+        ax.text(-.1, 0, label, fontweight="bold", color=color, ha="left", va="center", transform=ax.transAxes)
 
     g.map(label, "P1 Reward")
 
     # Set the subplots to overlap
-    g.figure.subplots_adjust(hspace=-.7)
+    g.figure.subplots_adjust(hspace=-0.7)
 
     # set xticks
     plt.xticks([-1, 0, 1])

@@ -127,4 +127,6 @@ app/plot_tournament/*
 app/logs_tournament/*
 app/plot_index/*
 app/logs_index/*
+app/plot_elo/*
+app/logs_elo/*
 app/pool/*

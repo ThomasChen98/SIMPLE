@@ -2,7 +2,7 @@
 ### Author: Yuxin Chen
 ### Date: Mar 14, 2023
 
-# sudo docker-compose exec app mpirun -np 5 python3 elo.py -e tictactoe -r -g 100 -a 1 25 2 -p 5 -ld data/SP_tictactoe_10M_s5/models
+# sudo docker-compose exec app mpirun -np 8 python3 elo.py -e tictactoe -r -g 100 -a 1 271 15 -p 8 -ld data/SP_TTT_20M_s8/models
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
@@ -54,7 +54,7 @@ def main(args):
 
     # load the policies
     checkpoint = np.arange(args.arange[0],args.arange[1],args.arange[2])
-    logger.info(f'\n##### Rank {rank+1} #####\nLoading {args.env_name} {rank+1} models...')
+    logger.info(f'\n##### Rank {rank} #####\nLoading {args.env_name} {rank} models...')
     models, model_list = load_selected_models(args.load_dir,env,rank,checkpoint)
     policy_num = len(models)
     
@@ -79,17 +79,17 @@ def main(args):
             obs = env.reset()
             done = False
             rewards = np.zeros(env.n_players)
-            logger.debug(f'Gameplay {i}-{i-1} #{game+1} start')
+            logger.debug(f'Gameplay {i}-{i-1} #{game} start')
 
             # shuffle player order
             players = agents[:]
-            logger.debug(f'Gameplay {i}-{i-1} #{game+1} P1 = {players[0]}, P2 = {players[1]}')
+            logger.debug(f'Gameplay {i}-{i-1} #{game} P1 = {players[0]}, P2 = {players[1]}')
             if args.randomise_players:
                 random.shuffle(players)
 
             # debug info
             for index, player in enumerate(players):
-                logger.debug(f'Gameplay {i}-{i-1} #{game+1}: Player {index+1} = {player.name}')
+                logger.debug(f'Gameplay {i}-{i-1} #{game}: Player {index} = {player.name}')
 
             while not done:
                 # current player info
@@ -116,7 +116,7 @@ def main(args):
                 
                 env.render()
                 
-                logger.debug(f"Gameplay {i}-{i-1} #{game+1} step: {rewards}")
+                logger.debug(f"Gameplay {i}-{i-1} #{game} step: {rewards}")
             
             # update actual score
             if rewards[0] == -1: # loss
@@ -126,7 +126,7 @@ def main(args):
             else: # defeat
                 actual_score[i] += 1
             
-            logger.debug(f"Gameplay {i}-{i-1} #{game+1} finished: {rewards}, actual score: {actual_score}")
+            logger.debug(f"Gameplay {i}-{i-1} #{game} finished: {rewards}, actual score: {actual_score}")
         
         # update expect score
         expected_score[i] = args.games/(1+10**(elo[i-1]-elo[i]/400))
@@ -150,12 +150,12 @@ def main(args):
             current_elo = np.zeros(policy_num)
             MPI.COMM_WORLD.Recv( [current_elo, MPI.DOUBLE], source=i, tag=i )
             world_elo[i] = current_elo
-            logger.info(f"{i+1}th elo received")
+            logger.info(f"{i}th elo received")
 
         # convert to pandas
         full_df = pd.DataFrame()
         for i in range(MPI.COMM_WORLD.Get_size()):
-            d = {'gen': range(policy_num), 'elo': world_elo[i], 'seed': [f'seed {i+1}']*policy_num}
+            d = {'gen': range(policy_num), 'elo': world_elo[i], 'seed': [f'seed {i}']*policy_num}
             df = pd.DataFrame(d)
             full_df = pd.concat([full_df, df], axis=0, ignore_index=True)
         
@@ -166,7 +166,7 @@ def main(args):
         plot_elo(full_df)
     else:
         MPI.COMM_WORLD.Send( [elo, MPI.DOUBLE], dest=0, tag=rank )
-        logger.info(f"\nRank {rank+1} elo sent")
+        logger.info(f"\nRank {rank} elo sent")
     
     # calculate processing time
     end_time = MPI.Wtime()
