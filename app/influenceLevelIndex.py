@@ -3,7 +3,7 @@
 ### Date: Feb 24, 2023
 
 ### Sample usage
-# sudo docker-compose exec app mpirun -np 25 python3 influenceLevelIndex.py -e tictactoe -g 100 -a 1 26 1 -p 5 -ld data/SP_TTT_20M_s8/models
+# sudo docker-compose exec app mpirun -np 64 python3 influenceLevelIndex.py -e tictactoe -g 100 -a 1 271 15 -p 8 -ld data/SP_TTT_20M_s8/models
 # sudo docker-compose exec app python3 influenceLevelIndex.py -e tictactoe -g 100 -a 1 26 1 -l SP_tictactoe_10M_s5/tictactoe_avg_1.26.1_g100.npz
 
 import os
@@ -73,7 +73,7 @@ def main(args):
     ego_rank = rank//args.population
     opp_rank = rank%args.population
     logger.info(f'\n##### Rank {rank} #####\nLoading {args.env_name} seed {ego_rank} model as ego, seed {opp_rank} model as opponent...')
-    ego_models, ego_model_list = load_selected_models(args.load_dir,env,ego_rank,checkpoint)
+    ego_models, ego_model_list = load_selected_models(args.load_dir,env,ego_rank,checkpoint[-1])
     opp_models, opp_model_list = load_selected_models(args.load_dir,env,opp_rank,checkpoint)
     if len(ego_models) != len(opp_models):
         raise Exception(f'# of ego policies and opponent policies does not match!')

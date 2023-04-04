@@ -3,7 +3,7 @@
 ### Date: Mar 7, 2023
 
 ### Sample usage
-# sudo docker-compose exec app mpirun -np 16 python3 tournamentCrossPolicy.py -e tictactoe -r -g 100 -ld data
+# sudo docker-compose exec app mpirun -np 25 python3 tournamentCrossPolicy.py -e tictactoe -r -g 100 -ld data
 # sudo docker-compose exec app python3 tournamentCrossPolicy.py -e tictactoe -g 100 -l tictactoe_g100.npz
 
 import os
@@ -64,7 +64,7 @@ def main(args):
 
     # load the policies
     policy_dir = ['SP_TTT_20M_s8', 'PP_TTT_20M_s3', 'PP_TTT_20M_s5',\
-                  'FCP_TTT_20M_p3']
+                  'FCP_TTT_20M_p3', 'FCP_TTT_20M_p5']
     
     # check mpi rank
     if MPI.COMM_WORLD.Get_size() != len(policy_dir)**2:

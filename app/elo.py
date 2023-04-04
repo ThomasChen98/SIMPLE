@@ -2,7 +2,7 @@
 ### Author: Yuxin Chen
 ### Date: Mar 14, 2023
 
-# sudo docker-compose exec app mpirun -np 8 python3 elo.py -e tictactoe -r -g 100 -a 1 271 15 -p 8 -ld data/SP_TTT_20M_s8/models
+# sudo docker-compose exec app mpirun -np 8 python3 elo.py -e tictactoe -r -g 100 -a 1 201 2 -p 8 -ld data/SP_TTT_20M_s8/models
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
@@ -71,25 +71,25 @@ def main(args):
     for i in range(1, policy_num): # define the first checkpoint's rate as 0
         # set up pairing agents
         agents.append(Agent('P1', models[i]))
-        agents.append(Agent('P2', models[i-1]))
-        logger.debug(f'Pair {i}-{i-1}: P1 = {model_list[i]}: {agents[0]}, P2 = {model_list[i-1]}: {agents[1]}')
+        agents.append(Agent('P2', models[0]))
+        logger.debug(f'Pair {i}-{0}: P1 = {model_list[i]}: {agents[0]}, P2 = {model_list[0]}: {agents[1]}')
 
         for game in range(args.games):
             # reset env
             obs = env.reset()
             done = False
             rewards = np.zeros(env.n_players)
-            logger.debug(f'Gameplay {i}-{i-1} #{game} start')
+            logger.debug(f'Gameplay {i}-{0} #{game} start')
 
             # shuffle player order
             players = agents[:]
-            logger.debug(f'Gameplay {i}-{i-1} #{game} P1 = {players[0]}, P2 = {players[1]}')
+            logger.debug(f'Gameplay {i}-{0} #{game} P1 = {players[0]}, P2 = {players[1]}')
             if args.randomise_players:
                 random.shuffle(players)
 
             # debug info
             for index, player in enumerate(players):
-                logger.debug(f'Gameplay {i}-{i-1} #{game}: Player {index} = {player.name}')
+                logger.debug(f'Gameplay {i}-{0} #{game}: Player {index} = {player.name}')
 
             while not done:
                 # current player info
@@ -116,7 +116,7 @@ def main(args):
                 
                 env.render()
                 
-                logger.debug(f"Gameplay {i}-{i-1} #{game} step: {rewards}")
+                logger.debug(f"Gameplay {i}-{0} #{game} step: {rewards}")
             
             # update actual score
             if rewards[0] == -1: # loss
@@ -126,16 +126,16 @@ def main(args):
             else: # defeat
                 actual_score[i] += 1
             
-            logger.debug(f"Gameplay {i}-{i-1} #{game} finished: {rewards}, actual score: {actual_score}")
+            logger.debug(f"Gameplay {i}-{0} #{game} finished: {rewards}, actual score: {actual_score}")
         
         # update expect score
-        expected_score[i] = args.games/(1+10**(elo[i-1]-elo[i]/400))
+        expected_score[i] = args.games/(1+10**(elo[0]-elo[i]/400))
 
         # update Elo rate
         K = 32
         elo[i] += K*(actual_score[i]-expected_score[i])
 
-        logger.info(f"Gameplay {i}-{i-1} finished, policy {i} ELO rating: {elo[i]}")
+        logger.info(f"Gameplay {i}-{0} finished, policy {i} ELO rating: {elo[i]}")
 
         # reset agents
         agents = []
