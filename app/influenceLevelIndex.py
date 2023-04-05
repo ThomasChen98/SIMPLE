@@ -75,9 +75,7 @@ def main(args):
     logger.info(f'\n##### Rank {rank} #####\nLoading {args.env_name} seed {ego_rank} model as ego, seed {opp_rank} model as opponent...')
     ego_models, ego_model_list = load_selected_models(args.load_dir,env,ego_rank,checkpoint[-1])
     opp_models, opp_model_list = load_selected_models(args.load_dir,env,opp_rank,checkpoint)
-    if len(ego_models) != len(opp_models):
-        raise Exception(f'# of ego policies and opponent policies does not match!')
-    policy_num = len(ego_models)
+    policy_num = len(opp_models)
     
     # total reward
     total_rewards = np.zeros((policy_num, args.games, env.n_players))

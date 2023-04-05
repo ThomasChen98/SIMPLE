@@ -143,9 +143,14 @@ def load_all_models(env, threadID):
 
 def load_selected_models(dir, env, rank, checkpoints):
     modellist = []
-    for cp in checkpoints:
+    if not isinstance(checkpoints, (int, np.integer)):
+        for cp in checkpoints:
+            for f in os.listdir(os.path.join(dir, f'thread_{rank}')):
+                if f.startswith("_model_"+str(rank).zfill(2)+"_"+str(cp).zfill(5)):
+                    modellist.append(f)
+    else:
         for f in os.listdir(os.path.join(dir, f'thread_{rank}')):
-            if f.startswith("_model_"+str(rank).zfill(2)+"_"+str(cp).zfill(5)):
+            if f.startswith("_model_"+str(rank).zfill(2)+"_"+str(checkpoints).zfill(5)):
                 modellist.append(f)
     modellist.sort()
     models = []
