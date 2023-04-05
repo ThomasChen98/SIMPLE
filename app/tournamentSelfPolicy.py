@@ -4,7 +4,7 @@
 
 ### Sample usage
 # sudo docker-compose exec app mpirun -np 64 python3 tournamentSelfPolicy.py -e tictactoe -r -g 100 -a 1 271 18 -p 8 -ld data/SP_TTT_20M_s8/models
-# sudo docker-compose exec app python3 tournamentSelfPolicy.py -e tictactoe -g 100 -a 1 25 2 -l SP_tictactoe_10M_s5_1.25.2/tictactoe_avg_1.25.2_g100.npz
+# sudo docker-compose exec app python3 tournamentSelfPolicy.py -e tictactoe -g 100 -a 1 271 18 -l SP_TTT_20M_s8_1.271.18/tictactoe_avg_1.271.18_g100.npz
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
@@ -41,7 +41,7 @@ def main(args):
         loaded = np.load(os.path.join(config.HEATMAPDIR, args.load))
         total_rewards_normalized = loaded['total_rewards_normalized']
         checkpoint = loaded['checkpoint']
-        heatmap_plot(total_rewards_normalized, checkpoint, args, opt='avg')
+        heatmap_plot(total_rewards_normalized, checkpoint, args, opt='std')
         return
     
     start_time = MPI.Wtime()
@@ -220,31 +220,33 @@ def heatmap_plot(total_rewards_normalized, checkpoint, args, ranks=None, opt='de
         P1_savename = f'./plot_tournament/{args.env_name}_avg_P1_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
         P2_savename = f'./plot_tournament/{args.env_name}_avg_P2_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
     elif opt == 'std':
-        P1_title = f"{args.env_name} row player average score std with {args.games} gameplays across {args.population} seeds"
-        P2_title = f"{args.env_name} column player average score std with {args.games} gameplays across {args.population} seeds"
+        P1_title = f"{args.env_name} row player score std with {args.games} gameplays across {args.population} seeds"
+        P2_title = f"{args.env_name} column player score std with {args.games} gameplays across {args.population} seeds"
         xlabel = f"Checkpoints for column player"
         ylabel = f"Checkpoints for row player"
         P1_savename = f'./plot_tournament/{args.env_name}_std_P1_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
         P2_savename = f'./plot_tournament/{args.env_name}_std_P2_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
 
     # generate heat plot
-    sns.set(rc={'figure.figsize':(15,12)})
-    ax = sns.heatmap(df_P1, annot=True, fmt=".2f", vmin=-1, vmax=1, cmap=args.cmap)
-    ax.set_title(P1_title.title(),fontsize=25)
+    sns.set(rc={'figure.figsize':(15, 13)})
+    ax = sns.heatmap(df_P1, annot=True, fmt=".2f", vmin=-1, vmax=1, cmap=args.cmap, square = True, cbar_kws={"shrink": 1})
+    ax.set_title(P1_title.title(), fontsize=25, y=1.05)
     ax.set_xlabel(xlabel, fontsize=20)
     ax.set_ylabel(ylabel, fontsize=20)
     # ax.xaxis.tick_top()
     plt.xticks(rotation=45)
+    plt.subplots_adjust(right=1)
     fig = ax.get_figure()
     fig.savefig(P1_savename) 
     fig.clf()
 
-    ax = sns.heatmap(df_P2, annot=True, fmt=".2f", vmin=-1, vmax=1, cmap=args.cmap)
-    ax.set_title(P2_title.title(),fontsize=25)
+    ax = sns.heatmap(df_P2, annot=True, fmt=".2f", vmin=-1, vmax=1, cmap=args.cmap, square = True, cbar_kws={"shrink": 1})
+    ax.set_title(P2_title.title(), fontsize=25, y=1.05)
     ax.set_xlabel(xlabel, fontsize=20)
     ax.set_ylabel(ylabel, fontsize=20)
     # ax.xaxis.tick_top()
     plt.xticks(rotation=45)
+    plt.subplots_adjust(right=1)
     fig = ax.get_figure()
     fig.savefig(P2_savename)
     fig.clf()

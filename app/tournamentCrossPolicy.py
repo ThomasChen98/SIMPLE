@@ -4,7 +4,7 @@
 
 ### Sample usage
 # sudo docker-compose exec app mpirun -np 25 python3 tournamentCrossPolicy.py -e tictactoe -r -g 100 -ld data
-# sudo docker-compose exec app python3 tournamentCrossPolicy.py -e tictactoe -g 100 -l tictactoe_g100.npz
+# sudo docker-compose exec app python3 tournamentCrossPolicy.py -e tictactoe -g 100 -l TTT/tictactoe_std_g100.npz
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
@@ -39,9 +39,13 @@ def main(args):
     elif args.load != None:
         logger.info(f'\nLoading {args.load} data and plot heatmap...')
         loaded = np.load(os.path.join(config.HEATMAPDIR, args.load))
-        world_mean_total_rewards = loaded['world_mean_total_rewards']
-        policy_dir = loaded['policy_dir']
-        heatmap_plot_total(world_mean_total_rewards, policy_dir, args)
+        # world_total_rewards_stats = loaded['world_total_rewards_stats']
+        # policy_dir = loaded['policy_dir']
+        # heatmap_plot_stats(world_total_rewards_stats, policy_dir, args, opt='avg')
+        total_rewards_normalized = loaded['total_rewards_normalized']
+        ego_model_list = loaded['ego_model_list']
+        opp_model_list = loaded['opp_model_list']
+        heatmap_plot(total_rewards_normalized, ego_model_list, opp_model_list, ['FCP_p5','PP_s5'], args)
         return
     
     start_time = MPI.Wtime()
@@ -163,26 +167,38 @@ def main(args):
 
     # plot total map
     if rank == 0:
-        world_mean_total_rewards = np.zeros((len(policy_dir), len(policy_dir), env.n_players))
-        world_mean_total_rewards[0,0,:] = total_rewards_normalized.mean(axis=(0, 1))
+        world_total_rewards_avg = np.zeros((len(policy_dir), len(policy_dir), env.n_players))
+        world_total_rewards_std = np.zeros((len(policy_dir), len(policy_dir), env.n_players))
+        world_total_rewards_avg[0,0,:] = total_rewards_normalized.mean(axis=(0, 1))
+        world_total_rewards_std[0,0,:] = total_rewards_normalized.std(axis=(0, 1))
         for i in range( 1, MPI.COMM_WORLD.Get_size() ):
-            current_mean_total_rewards = np.zeros(env.n_players)
-            MPI.COMM_WORLD.Recv( [current_mean_total_rewards, MPI.DOUBLE], source=i, tag=i )
+            current_total_rewards_avg = np.zeros(env.n_players)
+            current_total_rewards_std = np.zeros(env.n_players)
+            MPI.COMM_WORLD.Recv( [current_total_rewards_avg, MPI.DOUBLE], source=i, tag=i )
+            logger.info(f"{i}th normalized total_reward_avg received")
+            MPI.COMM_WORLD.Recv( [current_total_rewards_std, MPI.DOUBLE], source=i, tag=i+100 )
+            logger.info(f"{i}th normalized total_reward_std received")
             col = i//len(policy_dir)
             row = i%len(policy_dir)
-            world_mean_total_rewards[col,row,:] = current_mean_total_rewards
-            logger.info(f"{i}th normalized mean_total_reward received")
+            world_total_rewards_avg[col,row,:] = current_total_rewards_avg
+            world_total_rewards_std[col,row,:] = current_total_rewards_std
 
         # save data
-        total_name = f'./plot_tournament/{args.env_name}_g{args.games}'
-        np.savez_compressed(total_name, world_mean_total_rewards=world_mean_total_rewards, policy_dir=policy_dir)
+        total_name = f'./plot_tournament/{args.env_name}_avg_g{args.games}'
+        np.savez_compressed(total_name, world_total_rewards_stats=world_total_rewards_avg, policy_dir=policy_dir)
+        total_name = f'./plot_tournament/{args.env_name}_std_g{args.games}'
+        np.savez_compressed(total_name, world_total_rewards_stats=world_total_rewards_std, policy_dir=policy_dir)
 
         # plot
-        heatmap_plot_total(world_mean_total_rewards, policy_dir, args)
-        logger.info(f"\nGenerate total tournament heatmap")
+        heatmap_plot_stats(world_total_rewards_avg, policy_dir, args, opt='avg')
+        logger.info(f"\nGenerate average tournament heatmap")
+        heatmap_plot_stats(world_total_rewards_std, policy_dir, args, opt='std')
+        logger.info(f"\nGenerate tournament heatmap std")
     else:
         MPI.COMM_WORLD.Send( [total_rewards_normalized.mean(axis=(0, 1)), MPI.DOUBLE], dest=0, tag=rank )
-        logger.info(f"\nRank {rank} normalized mean_total_reward sent")
+        logger.info(f"\nRank {rank} normalized total_reward_avg sent")
+        MPI.COMM_WORLD.Send( [total_rewards_normalized.std(axis=(0, 1)), MPI.DOUBLE], dest=0, tag=rank+100 )
+        logger.info(f"\nRank {rank} normalized total_reward_std sent")
     
     # calculate processing time
     end_time = MPI.Wtime()
@@ -208,35 +224,37 @@ def heatmap_plot(total_rewards_normalized, ego_model_list, opp_model_list, name_
 
     # generate heat plot
     sns.set(rc={'figure.figsize':(15,13)})
-    ax = sns.heatmap(df_P1, annot=True, fmt=".2f", vmin=-1, vmax=1, cmap=args.cmap)
-    ax.set_title(P1_title.title(),fontsize=25)
+    ax = sns.heatmap(df_P1, annot=True, fmt=".2f", vmin=-1, vmax=1, cmap=args.cmap, square = True, cbar_kws={"shrink": 1})
+    ax.set_title(P1_title.title(), fontsize=25, y=1.05)
     ax.set_xlabel(xlabel, fontsize=20)
     ax.set_ylabel(ylabel, fontsize=20)
     # ax.xaxis.tick_top()
+    plt.subplots_adjust(right=1)
     plt.xticks(rotation=45)
     fig = ax.get_figure()
     fig.savefig(P1_savename) 
     fig.clf()
 
-    ax = sns.heatmap(df_P2, annot=True, fmt=".2f", vmin=-1, vmax=1, cmap=args.cmap)
-    ax.set_title(P2_title.title(),fontsize=25)
+    ax = sns.heatmap(df_P2, annot=True, fmt=".2f", vmin=-1, vmax=1, cmap=args.cmap, square = True, cbar_kws={"shrink": 1})
+    ax.set_title(P2_title.title(), fontsize=25, y=1.05)
     ax.set_xlabel(xlabel, fontsize=20)
     ax.set_ylabel(ylabel, fontsize=20)
     # ax.xaxis.tick_top()
+    plt.subplots_adjust(right=1)
     plt.xticks(rotation=45)
     fig = ax.get_figure()
     fig.savefig(P2_savename)
     fig.clf()
 
-def heatmap_plot_total(world_mean_total_rewards, policy_dir, args):
+def heatmap_plot_stats(world_total_rewards_stats, policy_dir, args, opt='avg'):
     # convert to short name
     policy_name = []
     for f in policy_dir:
         name_vec = f.split('_')
         policy_name.append(f'{name_vec[0]}_{name_vec[-1]}')
     # convert to dataframe for plotting
-    heat_data_P1 = world_mean_total_rewards[:,:,0]
-    heat_data_P2 = world_mean_total_rewards[:,:,1]
+    heat_data_P1 = world_total_rewards_stats[:,:,0]
+    heat_data_P2 = world_total_rewards_stats[:,:,1]
     P1_ticks = [str(x) for x in policy_name]
     P2_ticks = [str(x) for x in policy_name]
     df_P1 = pd.DataFrame(data=heat_data_P1, index=P1_ticks, columns=P2_ticks)
@@ -247,26 +265,35 @@ def heatmap_plot_total(world_mean_total_rewards, policy_dir, args):
     P2_title = f"{args.env_name} column player average score with {args.games} gameplays"
     xlabel = f"Training methods for column player"
     ylabel = f"Training methods for row player"
-    P1_savename = f'./plot_tournament/{args.env_name}_P1_g{args.games}.png'
-    P2_savename = f'./plot_tournament/{args.env_name}_P2_g{args.games}.png'
+    P1_savename = f'./plot_tournament/{args.env_name}_avg_P1_g{args.games}.png'
+    P2_savename = f'./plot_tournament/{args.env_name}_avg_P2_g{args.games}.png'
+    if opt == 'std':
+        P1_title = f"{args.env_name} row player score std with {args.games} gameplays"
+        P2_title = f"{args.env_name} column player score std with {args.games} gameplays"
+        xlabel = f"Training methods for column player"
+        ylabel = f"Training methods for row player"
+        P1_savename = f'./plot_tournament/{args.env_name}_std_P1_g{args.games}.png'
+        P2_savename = f'./plot_tournament/{args.env_name}_std_P2_g{args.games}.png'
 
     # generate heat plot
-    sns.set(rc={'figure.figsize':(15,13)})
-    ax = sns.heatmap(df_P1, annot=True, fmt=".2f", vmin=-1, vmax=1, cmap=args.cmap)
-    ax.set_title(P1_title.title(),fontsize=25)
+    sns.set(rc={'figure.figsize':(15, 13)})
+    ax = sns.heatmap(df_P1, annot=True, fmt=".2f", vmin=-1, vmax=1, cmap=args.cmap, square = True, cbar_kws={"shrink": 1})
+    ax.set_title(P1_title.title(), fontsize=25, y=1.05)
     ax.set_xlabel(xlabel, fontsize=20)
     ax.set_ylabel(ylabel, fontsize=20)
     # ax.xaxis.tick_top()
+    plt.subplots_adjust(right=1)
     plt.xticks(rotation=45)
     fig = ax.get_figure()
     fig.savefig(P1_savename) 
     fig.clf()
 
-    ax = sns.heatmap(df_P2, annot=True, fmt=".2f", vmin=-1, vmax=1, cmap=args.cmap)
-    ax.set_title(P2_title.title(),fontsize=25)
+    ax = sns.heatmap(df_P2, annot=True, fmt=".2f", vmin=-1, vmax=1, cmap=args.cmap, square = True, cbar_kws={"shrink": 1})
+    ax.set_title(P2_title.title(), fontsize=25, y=1.05)
     ax.set_xlabel(xlabel, fontsize=20)
     ax.set_ylabel(ylabel, fontsize=20)
     # ax.xaxis.tick_top()
+    plt.subplots_adjust(right=1)
     plt.xticks(rotation=45)
     fig = ax.get_figure()
     fig.savefig(P2_savename)

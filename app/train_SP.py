@@ -1,4 +1,4 @@
-# sudo docker-compose exec app python3 train_SP.py -r -e tictactoe -tt 2e7 -t 0.5 -tn 3
+# sudo docker-compose exec app python3 train_SP.py -r -e tictactoe -tt 2e7 -t 0.5 -tn 4
 # sudo docker-compose exec app mpirun -np 5 python3 train_SP.py -r -e tictactoe -tt 2e7 -t 0.5
 
 import os
