@@ -273,19 +273,19 @@ def ridgeline_plot(reward_prob_dist, kl_divergence, influence_level_index, total
         density_df = density_df.append(temp, ignore_index=True)
 
     # set title & label
-    savename = 'default_savename.png'
+    savename = 'default_savename.pdf'
     if opt == 'default':
         plot_title = f"{args.env_name} seed {ranks[0]} vs. seed {ranks[1]} player 1 reward distribution with {args.games} gameplays\n influence_level_index={influence_level_index:.5f}"
-        savename = f'./plot_index/P1_{args.env_name}_{ranks[0]}vs{ranks[1]}_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
+        savename = f'./plot_index/P1_{args.env_name}_{ranks[0]}vs{ranks[1]}_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.pdf'
     elif opt == 'avg':
         plot_title = f"{args.env_name} player 1 average reward distribution with {args.games} gameplays across {args.population} seeds\n influence_level_index={influence_level_index:.5f}"
-        savename = f'./plot_index/P1_{args.env_name}_avg_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
+        savename = f'./plot_index/P1_{args.env_name}_avg_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.pdf'
 
     # plot
     sns.set_theme(style="white", rc={"axes.facecolor": (0, 0, 0, 0)})
     # Initialize the FacetGrid object
-    pal = sns.cubehelix_palette(policy_num, rot=-.25, light=.7)
-    g = sns.FacetGrid(density_df, row="Model", hue="Model", aspect=25, height=.4, palette=pal)
+    # pal = sns.cubehelix_palette(policy_num, rot=-.25, light=.7)
+    g = sns.FacetGrid(density_df, row="Model", hue="Model", aspect=25, height=.4, palette="flare")
 
     # Draw the densities in a few steps
     # g.map(sns.kdeplot, "P1 Reward", bw_adjust=.3, clip_on=False, fill=True, alpha=1, linewidth=1)

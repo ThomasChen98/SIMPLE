@@ -203,29 +203,29 @@ def heatmap_plot(total_rewards_normalized, checkpoint, args, ranks=None, opt='de
     P2_title = 'default_title_P2'
     xlabel = 'default_xlabel'
     ylabel = 'default_ylabel'
-    P1_savename = 'default_savename_P1.png'
-    P2_savename = 'default_savename_P2.png'
+    P1_savename = 'default_savename_P1.pdf'
+    P2_savename = 'default_savename_P2.pdf'
     if opt == 'default':
         P1_title = f"{args.env_name} row player average score with {args.games} gameplays"
         P2_title = f"{args.env_name} column player average score with {args.games} gameplays"
         xlabel = f"Checkpoints of seed {ranks[1]} for column player"
         ylabel = f"Checkpoints of seed {ranks[0]} for row player"
-        P1_savename = f'./plot_tournament/{args.env_name}_{ranks[0]}vs{ranks[1]}_P1_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
-        P2_savename = f'./plot_tournament/{args.env_name}_{ranks[0]}vs{ranks[1]}_P2_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
+        P1_savename = f'./plot_tournament/{args.env_name}_{ranks[0]}vs{ranks[1]}_P1_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.pdf'
+        P2_savename = f'./plot_tournament/{args.env_name}_{ranks[0]}vs{ranks[1]}_P2_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.pdf'
     elif opt == 'avg':
         P1_title = f"{args.env_name} row player average score with {args.games} gameplays across {args.population} seeds"
         P2_title = f"{args.env_name} column player average score with {args.games} gameplays across {args.population} seeds"
         xlabel = f"Checkpoints for column player"
         ylabel = f"Checkpoints for row player"
-        P1_savename = f'./plot_tournament/{args.env_name}_avg_P1_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
-        P2_savename = f'./plot_tournament/{args.env_name}_avg_P2_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
+        P1_savename = f'./plot_tournament/{args.env_name}_avg_P1_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.pdf'
+        P2_savename = f'./plot_tournament/{args.env_name}_avg_P2_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.pdf'
     elif opt == 'std':
         P1_title = f"{args.env_name} row player score std with {args.games} gameplays across {args.population} seeds"
         P2_title = f"{args.env_name} column player score std with {args.games} gameplays across {args.population} seeds"
         xlabel = f"Checkpoints for column player"
         ylabel = f"Checkpoints for row player"
-        P1_savename = f'./plot_tournament/{args.env_name}_std_P1_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
-        P2_savename = f'./plot_tournament/{args.env_name}_std_P2_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.png'
+        P1_savename = f'./plot_tournament/{args.env_name}_std_P1_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.pdf'
+        P2_savename = f'./plot_tournament/{args.env_name}_std_P2_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.pdf'
 
     # generate heat plot
     sns.set(rc={'figure.figsize':(15, 13)})

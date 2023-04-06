@@ -41,11 +41,11 @@ def main(args):
         loaded = np.load(os.path.join(config.HEATMAPDIR, args.load))
         # world_total_rewards_stats = loaded['world_total_rewards_stats']
         # policy_dir = loaded['policy_dir']
-        # heatmap_plot_stats(world_total_rewards_stats, policy_dir, args, opt='avg')
+        # heatmap_plot_stats(world_total_rewards_stats, policy_dir, args, opt='std')
         total_rewards_normalized = loaded['total_rewards_normalized']
         ego_model_list = loaded['ego_model_list']
         opp_model_list = loaded['opp_model_list']
-        heatmap_plot(total_rewards_normalized, ego_model_list, opp_model_list, ['FCP_p5','PP_s5'], args)
+        heatmap_plot(total_rewards_normalized, ego_model_list, opp_model_list, ['PP_s5','PP_s5'], args)
         return
     
     start_time = MPI.Wtime()
@@ -219,8 +219,8 @@ def heatmap_plot(total_rewards_normalized, ego_model_list, opp_model_list, name_
     P2_title = f"{args.env_name} {name_list[0]} vs. {name_list[1]} column player average score with {args.games} gameplays"
     xlabel = f"Random seeds for column player"
     ylabel = f"Random seeds for row player"
-    P1_savename = f'./plot_tournament/{args.env_name}_{name_list[0]}vs{name_list[1]}_P1_g{args.games}.png'
-    P2_savename = f'./plot_tournament/{args.env_name}_{name_list[0]}vs{name_list[1]}_P2_g{args.games}.png'
+    P1_savename = f'./plot_tournament/{args.env_name}_{name_list[0]}vs{name_list[1]}_P1_g{args.games}.pdf'
+    P2_savename = f'./plot_tournament/{args.env_name}_{name_list[0]}vs{name_list[1]}_P2_g{args.games}.pdf'
 
     # generate heat plot
     sns.set(rc={'figure.figsize':(15,13)})
@@ -265,15 +265,15 @@ def heatmap_plot_stats(world_total_rewards_stats, policy_dir, args, opt='avg'):
     P2_title = f"{args.env_name} column player average score with {args.games} gameplays"
     xlabel = f"Training methods for column player"
     ylabel = f"Training methods for row player"
-    P1_savename = f'./plot_tournament/{args.env_name}_avg_P1_g{args.games}.png'
-    P2_savename = f'./plot_tournament/{args.env_name}_avg_P2_g{args.games}.png'
+    P1_savename = f'./plot_tournament/{args.env_name}_avg_P1_g{args.games}.pdf'
+    P2_savename = f'./plot_tournament/{args.env_name}_avg_P2_g{args.games}.pdf'
     if opt == 'std':
         P1_title = f"{args.env_name} row player score std with {args.games} gameplays"
         P2_title = f"{args.env_name} column player score std with {args.games} gameplays"
         xlabel = f"Training methods for column player"
         ylabel = f"Training methods for row player"
-        P1_savename = f'./plot_tournament/{args.env_name}_std_P1_g{args.games}.png'
-        P2_savename = f'./plot_tournament/{args.env_name}_std_P2_g{args.games}.png'
+        P1_savename = f'./plot_tournament/{args.env_name}_std_P1_g{args.games}.pdf'
+        P2_savename = f'./plot_tournament/{args.env_name}_std_P2_g{args.games}.pdf'
 
     # generate heat plot
     sns.set(rc={'figure.figsize':(15, 13)})
