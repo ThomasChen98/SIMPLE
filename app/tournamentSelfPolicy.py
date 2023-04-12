@@ -4,7 +4,7 @@
 
 ### Sample usage
 # sudo docker-compose exec app mpirun -np 64 python3 tournamentSelfPolicy.py -e tictactoe -r -g 100 -a 1 271 18 -p 8 -ld data/SP_TTT_20M_s8/models
-# sudo docker-compose exec app python3 tournamentSelfPolicy.py -e tictactoe -g 100 -a 1 271 18 -l SP_TTT_20M_s8_1.271.18/tictactoe_avg_1.271.18_g100.npz
+# sudo docker-compose exec app python3 tournamentSelfPolicy.py -e tictactoe -g 100 -a 1 271 18 -p 8 -l SP_TTT_20M_s8_1.271.18/tictactoe_avg_1.271.18_g100.npz
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
@@ -41,7 +41,7 @@ def main(args):
         loaded = np.load(os.path.join(config.HEATMAPDIR, args.load))
         total_rewards_normalized = loaded['total_rewards_normalized']
         checkpoint = loaded['checkpoint']
-        heatmap_plot(total_rewards_normalized, checkpoint, args, opt='std')
+        heatmap_plot(total_rewards_normalized, checkpoint, args, opt='avg')
         return
     
     start_time = MPI.Wtime()
