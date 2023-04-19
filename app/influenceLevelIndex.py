@@ -227,6 +227,7 @@ def main(args):
         avg_kl_divergence = np.zeros_like(kl_divergence)
         avg_influence_level_index = np.zeros_like(influence_level_index)
         avg_total_rewards = np.zeros_like(total_rewards)
+        std_influence_level_index = np.std(world_influence_level_index) # std across all threads' index
         for i in range( MPI.COMM_WORLD.Get_size() ):
             m = i//args.population
             n = i%args.population
@@ -234,7 +235,7 @@ def main(args):
             avg_kl_divergence += world_kl_divergence[i,:]*seed_sampling_dist[m]*seed_sampling_dist[n]
             avg_influence_level_index += world_influence_level_index[i]*seed_sampling_dist[m]*seed_sampling_dist[n]
             avg_total_rewards = np.concatenate((avg_total_rewards,world_total_rewards[i,:,:,:]),axis=1) # here we assume seed_sampling_dist is uniform distribution
-        logger.info(f'\nAverage Influence Level Index of {args.env_name} approximated by given {policy_num} policies across {args.population}: {avg_influence_level_index}')
+        logger.info(f'\nAverage Influence Level Index of {args.env_name} approximated by given {policy_num} policies across {args.population}: {avg_influence_level_index} +/- {std_influence_level_index}')
 
         # save data
         avg_name = f'./plot_index/{args.env_name}_avg_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}'
@@ -242,7 +243,7 @@ def main(args):
                         influence_level_index=avg_influence_level_index, total_rewards=avg_total_rewards,\
                         checkpoint=checkpoint)
         # plot
-        ridgeline_plot(avg_reward_prob_dist, avg_kl_divergence, avg_influence_level_index, avg_total_rewards, checkpoint, args, opt='avg')
+        ridgeline_plot(avg_reward_prob_dist, avg_kl_divergence, avg_influence_level_index, avg_total_rewards, checkpoint, args, opt='avg', influence_level_index_std = std_influence_level_index)
         logger.info(f"\nGenerate average ili ridgeline")
     else:
         # send data
@@ -257,7 +258,7 @@ def main(args):
     if rank == 0:
         logger.info(f"\nProcessing time: {end_time-start_time}")
 
-def ridgeline_plot(reward_prob_dist, kl_divergence, influence_level_index, total_rewards, checkpoint, args, ranks=None, opt='default'):
+def ridgeline_plot(reward_prob_dist, kl_divergence, influence_level_index, total_rewards, checkpoint, args, ranks=None, opt='default', influence_level_index_std = 0):
     if opt == 'default':
         if ranks == None:
             raise Exception(f'No rank info for default ridgeline plot!')
@@ -278,7 +279,7 @@ def ridgeline_plot(reward_prob_dist, kl_divergence, influence_level_index, total
         plot_title = f"{args.env_name} seed {ranks[0]} vs. seed {ranks[1]} player 1 reward distribution with {args.games} gameplays\n influence_level_index={influence_level_index:.5f}"
         savename = f'./plot_index/P1_{args.env_name}_{ranks[0]}vs{ranks[1]}_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.pdf'
     elif opt == 'avg':
-        plot_title = f"{args.env_name} player 1 average reward distribution with {args.games} gameplays across {args.population} seeds\n influence_level_index={influence_level_index:.5f}"
+        plot_title = f"{args.env_name} player 1 average reward distribution with {args.games} gameplays across {args.population} seeds\n influence_level_index={influence_level_index:.5f} +/- {influence_level_index_std:.5f}"
         savename = f'./plot_index/P1_{args.env_name}_avg_{args.arange[0]}.{args.arange[1]}.{args.arange[2]}_g{args.games}.pdf'
 
     # plot

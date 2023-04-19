@@ -1,0 +1,1 @@
+sudo docker-compose exec app mpirun -np 36 python3 influenceLevelIndex.py -e connect4 -g 100 -a 1 50 4 -p 6 -ld data/SP_C4_10M_s8/models
