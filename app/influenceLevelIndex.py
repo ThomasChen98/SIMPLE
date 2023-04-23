@@ -35,11 +35,11 @@ import config
 
 def main(args):
     # if load previous data, directly plot the ridgeline
-    if args.load != None and not os.path.exists(os.path.join(config.RIDGELINEDIR, args.load)):
+    if args.load != None and not os.path.exists(os.path.join(config.INDEXDIR, args.load)):
         raise Exception(f'{args.load} does not exist!')
     elif args.load != None:
         logger.info(f'\nLoading {args.load} data and plot ridgeline...')
-        loaded = np.load(os.path.join(config.RIDGELINEDIR, args.load))
+        loaded = np.load(os.path.join(config.INDEXDIR, args.load))
         reward_prob_dist = loaded['reward_prob_dist']
         kl_divergence = loaded['kl_divergence']
         influence_level_index = loaded['influence_level_index']
@@ -55,7 +55,7 @@ def main(args):
         raise Exception(f'MPI processors number should be {args.population**2}!')
 
     # setup logger
-    logger.configure(config.ILILOGDIR)
+    logger.configure(config.INDEXLOGDIR)
 
     if args.debug:
         logger.set_level(config.DEBUG)

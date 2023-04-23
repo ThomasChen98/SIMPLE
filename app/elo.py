@@ -53,43 +53,48 @@ def main(args):
     set_global_seeds(workerseed)
 
     # load the policies
+    load_rank = 7
     checkpoint = np.arange(args.arange[0],args.arange[1],args.arange[2])
-    logger.info(f'\n##### Rank {rank} #####\nLoading {args.env_name} {rank} models...')
-    models, model_list = load_selected_models(args.load_dir,env,rank,checkpoint)
+    logger.info(f'\n##### Rank {rank} #####\nLoading {args.env_name} {load_rank} models...')
+    models, model_list = load_selected_models(args.load_dir,env,load_rank,checkpoint)
     policy_num = len(models)
     
-    # scores and elo rate
-    actual_score = np.zeros(policy_num)
-    expected_score = np.zeros(policy_num)
-    elo = np.zeros(policy_num)
+    # elo rate
+    elo = np.ones(policy_num) * 1500 # default elo for new player = 1500
 
     # agents
     agents = []
     
     # play games
-    logger.info(f'\nPlaying {args.games} games for each of {policy_num} policies...')
-    for i in range(1, policy_num): # define the first checkpoint's rate as 0
-        # set up pairing agents
-        agents.append(Agent('P1', models[i]))
-        agents.append(Agent('P2', models[0]))
-        logger.debug(f'Pair {i}-{0}: P1 = {model_list[i]}: {agents[0]}, P2 = {model_list[0]}: {agents[1]}')
+    logger.info(f'\nPlaying {args.games} random bridge-card-style games...')
+    for gg in range(args.games): # define the first checkpoint's rate as 0
+        i = random.randint(0, policy_num-1)
+        j = random.randint(0, policy_num-1)
 
-        for game in range(args.games):
+        actual_score = np.zeros(2)
+        expected_score = np.zeros(2)
+        # set up pairing agents
+        agents.append(Agent('A1', models[i]))
+        agents.append(Agent('A2', models[j]))
+        logger.debug(f'Pair {i}-{j}: P1 = {model_list[i]}: {agents[0]}, P2 = {model_list[j]}: {agents[1]}')
+
+        for game in range(2):
             # reset env
             obs = env.reset()
             done = False
             rewards = np.zeros(env.n_players)
-            logger.debug(f'Gameplay {i}-{0} #{game} start')
+            logger.debug(f'Gameplay {i}-{j} #{game} start')
 
             # shuffle player order
             players = agents[:]
-            logger.debug(f'Gameplay {i}-{0} #{game} P1 = {players[0]}, P2 = {players[1]}')
-            if args.randomise_players:
-                random.shuffle(players)
+            if game == 1:
+                players[0] = agents[1]
+                players[1] = agents[0]
+            logger.debug(f'Gameplay {i}-{j} #{game} P1 = {players[0]}, P2 = {players[1]}')
 
             # debug info
             for index, player in enumerate(players):
-                logger.debug(f'Gameplay {i}-{0} #{game}: Player {index} = {player.name}')
+                logger.debug(f'Gameplay {i}-{j} #{game}: Player {index} = {player.name}')
 
             while not done:
                 # current player info
@@ -105,7 +110,7 @@ def main(args):
                 obs, reward, done, _ = env.step(action)
                 
                 # calculate reward
-                roster = {'P1': 0, 'P2': 1}
+                roster = {'A1': 0, 'A2': 1}
                 for r, player in zip(reward, players):
                     logger.debug(f'Player {player.name} + {r}')
                     rewards[roster[player.name]] += r
@@ -116,26 +121,35 @@ def main(args):
                 
                 env.render()
                 
-                logger.debug(f"Gameplay {i}-{0} #{game} step: {rewards}")
+                logger.debug(f"Gameplay {i}-{j} #{game} step: {rewards}")
             
             # update actual score
-            if rewards[0] == -1: # loss
-                actual_score[i] += 0
+            if rewards[0] == -1: # A1 loss
+                actual_score[1] += 1
             elif rewards[0] == 0: # draw
-                actual_score[i] += 0.5
-            else: # defeat
-                actual_score[i] += 1
+                actual_score[0] += 0.5
+                actual_score[1] += 0.5
+            else: # A1 defeat
+                actual_score[0] += 1
             
-            logger.debug(f"Gameplay {i}-{0} #{game} finished: {rewards}, actual score: {actual_score}")
+            logger.debug(f"Gameplay {i}-{j} #{game} finished: {rewards}, actual score: {actual_score}")
         
         # update expect score
-        expected_score[i] = args.games/(1+10**(elo[0]-elo[i]/400))
+        logger.debug(f"#{gg} Gameplay {i}-{j} elo[i] = {elo[i]} elo[j] = {elo[j]}")
+        expected_score[0] = 2/(1+10**((elo[j]-elo[i])/400))
+        expected_score[1] = 2/(1+10**((elo[i]-elo[j])/400))
+        logger.debug(f"#{gg} Gameplay {i}-{j} expected_score[i] = {expected_score[0]} expected_score[j] = {expected_score[1]}")
 
         # update Elo rate
         K = 32
-        elo[i] += K*(actual_score[i]-expected_score[i])
+        if np.min(elo) >= 2100 and np.min(elo) < 2400:
+            K = 24
+        elif np.min(elo) >= 2400:
+            K = 16
+        elo[i] += K*(actual_score[0]-expected_score[0])
+        elo[j] += K*(actual_score[1]-expected_score[1])
 
-        logger.info(f"Gameplay {i}-{0} finished, policy {i} ELO rating: {elo[i]}")
+        logger.info(f"#{gg} Gameplay {i}-{j} finished, policy {i} ELO rating: {elo[i]}, policy {j} ELO rating: {elo[j]}")
 
         # reset agents
         agents = []
@@ -155,15 +169,15 @@ def main(args):
         # convert to pandas
         full_df = pd.DataFrame()
         for i in range(MPI.COMM_WORLD.Get_size()):
-            d = {'gen': range(policy_num), 'elo': world_elo[i], 'seed': [f'seed {i}']*policy_num}
+            d = {'gen': checkpoint, 'elo': world_elo[i], 'seed': [f'seed {i}']*policy_num}
             df = pd.DataFrame(d)
             full_df = pd.concat([full_df, df], axis=0, ignore_index=True)
         
-        save_name = f'./plot_elo/{args.env_name}_g{args.games}'
+        save_name = f'./plot_elo/{args.save_name}_g{args.games}_p{args.population}'
         np.savez_compressed(save_name, world_elo=world_elo)
     
         # plot
-        plot_elo(full_df)
+        plot_elo(full_df, args)
     else:
         MPI.COMM_WORLD.Send( [elo, MPI.DOUBLE], dest=0, tag=rank )
         logger.info(f"\nRank {rank} elo sent")
@@ -173,7 +187,7 @@ def main(args):
     if rank == 0:
         logger.info(f"\nProcessing time: {end_time-start_time}")
 
-def plot_elo(full_df):
+def plot_elo(full_df, args):
     figsize=(10, 6)
     sns.set()
     sns.set_context("paper")
@@ -181,7 +195,7 @@ def plot_elo(full_df):
     fig, ax = plt.subplots(figsize=figsize)
     g = sns.lineplot(data=full_df, x='gen', y='elo')
     ax.set(xlabel='Model generation', ylabel='ELO rate')
-    plt.savefig(os.path.join(config.ELODIR, 'tictactoe_SP.pdf'), bbox_inches='tight')
+    plt.savefig(os.path.join(config.ELODIR, f'{args.save_name}.pdf'), bbox_inches='tight')
 
 def cli() -> None:
   """Handles argument extraction from CLI and passing to main().
@@ -222,6 +236,8 @@ def cli() -> None:
                 , help="Random seed")
   parser.add_argument("--verbose", "-v",  action = 'store_true', default = False
                 , help="Show observation on debug logging")
+  parser.add_argument("--save_name", "-sn", type = str, default = 'tictactoe_SP'
+                , help="File save name")
 
   # Extract args
   args = parser.parse_args()

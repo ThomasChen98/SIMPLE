@@ -1,0 +1,37 @@
+Logging to logs_pvalue
+Load data/FCP_TTT_20M_p3/models/thread_0/best_model_00.zip as FCP_thread_0
+Load data/FCP_TTT_20M_p3/models/thread_1/best_model_01.zip as FCP_thread_1
+Load data/FCP_TTT_20M_p3/models/thread_2/best_model_02.zip as FCP_thread_2
+Load data/FCP_TTT_20M_p3/models/thread_3/best_model_03.zip as FCP_thread_3
+Load data/FCP_TTT_20M_p3/models/thread_4/best_model_04.zip as FCP_thread_4
+Load data/PP_TTT_20M_s3/models/thread_0/best_model_00.zip as PP_thread_0
+Load data/PP_TTT_20M_s3/models/thread_1/best_model_01.zip as PP_thread_1
+Load data/PP_TTT_20M_s3/models/thread_2/best_model_02.zip as PP_thread_2
+
+Playing 20 games for each of 5x3 policies...
+Gameplay 0-0 finished
+Gameplay 0-1 finished
+Gameplay 0-2 finished
+Gameplay 1-0 finished
+Gameplay 1-1 finished
+Gameplay 1-2 finished
+Gameplay 2-0 finished
+Gameplay 2-1 finished
+Gameplay 2-2 finished
+Gameplay 3-0 finished
+Gameplay 3-1 finished
+Gameplay 3-2 finished
+Gameplay 4-0 finished
+Gameplay 4-1 finished
+Gameplay 4-2 finished
+Total games 300
+wins_count 123 -- 69
+loses_count 69 -- 123
+draws_count 108 -- 108
+P-value 6.949998110245107e-22 -- 0.001080569370620214
+
+Rank 16 p-pvalue sent
+
+Rank 16 total_count sent
+
+Processing time: 29.334669099000166

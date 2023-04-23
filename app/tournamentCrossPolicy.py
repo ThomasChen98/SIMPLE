@@ -34,11 +34,11 @@ import config
 
 def main(args):
     # if load previous data, directly plot the heatmap
-    if args.load != None and not os.path.exists(os.path.join(config.HEATMAPDIR, args.load)):
+    if args.load != None and not os.path.exists(os.path.join(config.TOURNAMENTDIR, args.load)):
         raise Exception(f'{args.load} does not exist!')
     elif args.load != None:
         logger.info(f'\nLoading {args.load} data and plot heatmap...')
-        loaded = np.load(os.path.join(config.HEATMAPDIR, args.load))
+        loaded = np.load(os.path.join(config.TOURNAMENTDIR, args.load))
         # world_total_rewards_stats = loaded['world_total_rewards_stats']
         # policy_dir = loaded['policy_dir']
         # heatmap_plot_stats(world_total_rewards_stats, policy_dir, args, opt='std')

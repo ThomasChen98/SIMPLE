@@ -1,0 +1,67 @@
+Logging to logs_pvalue
+Load data/PP_TTT_20M_s5/models/thread_0/best_model_00.zip as PP_thread_0
+Load data/PP_TTT_20M_s5/models/thread_1/best_model_01.zip as PP_thread_1
+Load data/PP_TTT_20M_s5/models/thread_2/best_model_02.zip as PP_thread_2
+Load data/PP_TTT_20M_s5/models/thread_3/best_model_03.zip as PP_thread_3
+Load data/PP_TTT_20M_s5/models/thread_4/best_model_04.zip as PP_thread_4
+Load data/SP_TTT_20M_s8/models/thread_0/best_model_00.zip as SP_thread_0
+Load data/SP_TTT_20M_s8/models/thread_1/best_model_01.zip as SP_thread_1
+Load data/SP_TTT_20M_s8/models/thread_2/best_model_02.zip as SP_thread_2
+Load data/SP_TTT_20M_s8/models/thread_3/best_model_03.zip as SP_thread_3
+Load data/SP_TTT_20M_s8/models/thread_4/best_model_04.zip as SP_thread_4
+Load data/SP_TTT_20M_s8/models/thread_5/best_model_05.zip as SP_thread_5
+Load data/SP_TTT_20M_s8/models/thread_6/best_model_06.zip as SP_thread_6
+Load data/SP_TTT_20M_s8/models/thread_7/best_model_07.zip as SP_thread_7
+
+Playing 20 games for each of 5x8 policies...
+Gameplay 0-0 finished
+Gameplay 0-1 finished
+Gameplay 0-2 finished
+Gameplay 0-3 finished
+Gameplay 0-4 finished
+Gameplay 0-5 finished
+Gameplay 0-6 finished
+Gameplay 0-7 finished
+Gameplay 1-0 finished
+Gameplay 1-1 finished
+Gameplay 1-2 finished
+Gameplay 1-3 finished
+Gameplay 1-4 finished
+Gameplay 1-5 finished
+Gameplay 1-6 finished
+Gameplay 1-7 finished
+Gameplay 2-0 finished
+Gameplay 2-1 finished
+Gameplay 2-2 finished
+Gameplay 2-3 finished
+Gameplay 2-4 finished
+Gameplay 2-5 finished
+Gameplay 2-6 finished
+Gameplay 2-7 finished
+Gameplay 3-0 finished
+Gameplay 3-1 finished
+Gameplay 3-2 finished
+Gameplay 3-3 finished
+Gameplay 3-4 finished
+Gameplay 3-5 finished
+Gameplay 3-6 finished
+Gameplay 3-7 finished
+Gameplay 4-0 finished
+Gameplay 4-1 finished
+Gameplay 4-2 finished
+Gameplay 4-3 finished
+Gameplay 4-4 finished
+Gameplay 4-5 finished
+Gameplay 4-6 finished
+Gameplay 4-7 finished
+Total games 800
+wins_count 271 -- 206
+loses_count 206 -- 271
+draws_count 323 -- 323
+P-value 1.133488884659549e-44 -- 2.4420654520482353e-20
+
+Rank 10 p-pvalue sent
+
+Rank 10 total_count sent
+
+Processing time: 49.940082503992016
